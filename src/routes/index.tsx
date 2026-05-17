@@ -39,11 +39,17 @@ const CATEGORIES = [
 
 function Index() {
   const [pmo, setPmo] = useState("");
+  const [email, setEmail] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Prefill email when signed in
+  useEffect(() => {
+    if (user?.email) setEmail(user.email);
+  }, [user]);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
