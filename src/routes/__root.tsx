@@ -7,8 +7,12 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useServerFn } from "@tanstack/react-start";
 
 import appCss from "../styles.css?url";
+import { supabase } from "@/integrations/supabase/client";
+import { syncSelfToAweber } from "@/lib/aweber.functions";
 
 function NotFoundComponent() {
   return (
@@ -114,6 +118,17 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const syncAweber = useServerFn(syncSelfToAweber);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN") {
+        // Fire-and-forget; server fn handles already-synced and errors.
+        syncAweber().catch((e) => console.warn("aweber sync failed:", e));
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [syncAweber]);
 
   return (
     <QueryClientProvider client={queryClient}>
