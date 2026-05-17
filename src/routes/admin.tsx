@@ -114,7 +114,15 @@ function AdminPage() {
           <Link to="/" className="font-display text-2xl font-black text-gold">
             PMO<span className="text-foreground">fix</span>
           </Link>
-          <div className="text-xs uppercase tracking-[0.2em] text-gold">Admin</div>
+          <div className="flex items-center gap-4">
+            <Link
+              to="/admin/aweber"
+              className="text-xs uppercase tracking-[0.2em] text-muted-foreground hover:text-gold"
+            >
+              AWeber
+            </Link>
+            <div className="text-xs uppercase tracking-[0.2em] text-gold">Admin</div>
+          </div>
         </div>
       </header>
 
