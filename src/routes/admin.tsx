@@ -238,7 +238,7 @@ type FixDraft = {
 
 const emptyDraft: FixDraft = {
   name: "",
-  type: "internal_product",
+  type: "in_house",
   summary: "",
   description: "",
   url: "",
