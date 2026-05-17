@@ -562,3 +562,121 @@ function Option({
     </div>
   );
 }
+
+function StepHeader({ step }: { step: number }) {
+  const labels = ["PMO #1", "PMO #2", "PMO #3", "PMO #4", "Last one, we promise."];
+  return (
+    <div className="mb-4 flex items-center justify-between">
+      <div className="text-xs uppercase tracking-[0.25em] text-gold">{labels[step - 1]}</div>
+      <div className="flex gap-1.5">
+        {[1, 2, 3, 4, 5].map((s) => (
+          <span
+            key={s}
+            className={`h-1.5 w-6 rounded-full transition ${
+              s <= step ? "bg-gold" : "bg-border"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Chip({
+  active, onClick, children,
+}: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-4 py-1.5 text-sm transition ${
+        active
+          ? "border-gold bg-gold text-gold-foreground"
+          : "border-border bg-secondary/60 text-muted-foreground hover:border-gold/60 hover:text-cream"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function PickButton({
+  active, onClick, children,
+}: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg border px-4 py-3 text-left text-sm transition ${
+        active
+          ? "border-gold bg-gold/10 text-cream"
+          : "border-border bg-secondary/40 text-muted-foreground hover:border-gold/60 hover:text-cream"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Nav({
+  onBack, onNext, nextDisabled, transition,
+}: { onBack?: () => void; onNext: () => void; nextDisabled?: boolean; transition?: string }) {
+  return (
+    <div className="mt-8 flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="text-sm uppercase tracking-wider text-muted-foreground hover:text-cream transition"
+          >
+            ← Back
+          </button>
+        ) : <span />}
+        <button
+          type="button"
+          onClick={onNext}
+          disabled={nextDisabled}
+          className="inline-flex items-center justify-center rounded-lg bg-gold px-6 py-3 text-sm font-bold uppercase tracking-wide text-gold-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Continue →
+        </button>
+      </div>
+      {transition && (
+        <p className="text-xs italic text-muted-foreground">{transition}</p>
+      )}
+    </div>
+  );
+}
+
+function LoadingState({ line }: { line: string }) {
+  return (
+    <div className="py-12 text-center">
+      <div className="mx-auto mb-6 h-12 w-12 animate-spin rounded-full border-2 border-gold/30 border-t-gold" />
+      <h2 className="font-display text-3xl font-black italic text-cream md:text-4xl">
+        Scanning the fix vault...
+      </h2>
+      <p className="mt-4 text-muted-foreground italic transition-opacity">{line}</p>
+    </div>
+  );
+}
+
+function PostSubmit({ firstName, onReset }: { firstName: string; onReset: () => void }) {
+  return (
+    <div className="py-8 text-center">
+      <div className="mb-3 text-xs uppercase tracking-[0.25em] text-gold">On it</div>
+      <h2 className="font-display text-3xl font-black italic text-cream md:text-4xl">
+        {firstName ? `Thanks, ${firstName}.` : "Thanks."} We've got your PMO.
+      </h2>
+      <p className="mt-4 text-muted-foreground">
+        We'll review your submission and send your fix — or an honest answer — to your inbox.
+      </p>
+      <button
+        onClick={onReset}
+        className="mt-8 text-sm uppercase tracking-wider text-gold hover:underline"
+      >
+        ← Submit another PMO
+      </button>
+    </div>
+  );
+}
