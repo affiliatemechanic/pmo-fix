@@ -189,10 +189,10 @@ function Index() {
 
               <button
                 type="submit"
-                disabled={pmo.trim().length < 5}
+                disabled={pmo.trim().length < 5 || saving}
                 className="mt-8 inline-flex w-full items-center justify-center rounded-lg bg-gold px-6 py-4 text-base font-bold uppercase tracking-wide text-gold-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 md:w-auto"
               >
-                Fix this →
+                {saving ? "Sending…" : "Fix this →"}
               </button>
               <p className="mt-4 text-xs text-muted-foreground">
                 No spam. No pitches. Just your fix.
