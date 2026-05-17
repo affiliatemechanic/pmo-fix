@@ -528,11 +528,27 @@ function Index() {
       </section>
 
       <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-10 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-          <div className="font-display text-lg font-black text-gold">
-            PMO<span className="text-foreground">fix</span>
+        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-10 text-sm text-muted-foreground">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="font-display text-lg font-black text-gold">
+              PMO<span className="text-foreground">fix</span>
+            </div>
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs uppercase tracking-wider">
+              <Link to="/terms" className="hover:text-gold">Terms</Link>
+              <Link to="/privacy" className="hover:text-gold">Privacy</Link>
+              <Link to="/refund" className="hover:text-gold">Refund Policy</Link>
+              <Link to="/acceptable-use" className="hover:text-gold">Acceptable Use</Link>
+              <Link to="/contact" className="hover:text-gold">Contact</Link>
+            </div>
           </div>
-          <div>© {new Date().getFullYear()} PMOfix — Jeffrey Levesque. We'll fix it.</div>
+          <div className="flex flex-col gap-1 border-t border-border pt-6 text-xs md:flex-row md:items-center md:justify-between">
+            <div>
+              © {new Date().getFullYear()} PMOfix — operated by Affiliate Mechanic, Burnet County, TX.
+            </div>
+            <div>
+              Payments processed by Paddle.com Market Limited (merchant of record).
+            </div>
+          </div>
         </div>
       </footer>
     </main>
