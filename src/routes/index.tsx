@@ -69,11 +69,6 @@ function Index() {
               Describe the thing that slows you down, wastes your time, or makes you want to
               throw your laptop. We'll match it to a fix — or build one.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3 text-sm text-muted-foreground">
-              <Stat label="Match" value="Existing tool" />
-              <Stat label="Or" value="Affiliate fix" />
-              <Stat label="Or" value="We build it" />
-            </div>
           </div>
 
           {/* Crest */}
