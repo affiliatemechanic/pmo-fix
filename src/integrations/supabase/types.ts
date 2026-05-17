@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      aweber_list_map: {
+        Row: {
+          created_at: string
+          id: string
+          list_id: string
+          list_name: string | null
+          product_id: string
+          tag: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          list_id: string
+          list_name?: string | null
+          product_id: string
+          tag?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          list_id?: string
+          list_name?: string | null
+          product_id?: string
+          tag?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      aweber_settings: {
+        Row: {
+          access_token: string | null
+          account_id: string | null
+          created_at: string
+          id: string
+          refresh_token: string | null
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          account_id?: string | null
+          created_at?: string
+          id: string
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          account_id?: string | null
+          created_at?: string
+          id?: string
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -206,6 +266,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          aweber_synced_at: string | null
           created_at: string
           display_name: string | null
           email: string | null
@@ -214,6 +275,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          aweber_synced_at?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
@@ -222,6 +284,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          aweber_synced_at?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
