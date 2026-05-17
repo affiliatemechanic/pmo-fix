@@ -1,9 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import logo from "@/assets/pmofix-logo.png";
 import { supabase } from "@/integrations/supabase/client";
+import { matchSubmission, type MatchResult } from "@/lib/match.functions";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
+
+type MatchResultFull = MatchResult & {
+  matched_fix?: {
+    id: string;
+    name: string;
+    type: string;
+    summary: string;
+    url?: string;
+    price_note?: string;
+  } | null;
+};
 
 export const Route = createFileRoute("/")({
   component: Index,
