@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/admin/aweber")({
+export const Route = createFileRoute("/admin_/aweber")({
   component: AdminAweberPage,
   head: () => ({
     meta: [
