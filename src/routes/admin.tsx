@@ -26,6 +26,7 @@ type Submission = {
   user_id: string | null;
   description: string;
   category: string | null;
+  email: string | null;
   created_at: string;
 };
 
@@ -151,8 +152,13 @@ function AdminPage() {
                   </div>
                 </div>
                 <p className="mt-3 whitespace-pre-wrap text-cream">{s.description}</p>
-                <div className="mt-2 text-xs text-muted-foreground">
-                  {s.user_id ? `User: ${s.user_id.slice(0, 8)}…` : "Anonymous"}
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  {s.email && (
+                    <a href={`mailto:${s.email}`} className="text-gold hover:underline">
+                      {s.email}
+                    </a>
+                  )}
+                  <span>{s.user_id ? `User: ${s.user_id.slice(0, 8)}…` : "Anonymous"}</span>
                 </div>
               </div>
             ))}
