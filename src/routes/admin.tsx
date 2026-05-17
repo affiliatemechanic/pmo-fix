@@ -424,17 +424,22 @@ function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<voi
                 />
               </Field>
               <Field label="Type">
-                <select
-                  className="input"
-                  value={editing.type}
-                  onChange={(e) => setEditing({ ...editing, type: e.target.value })}
-                >
+                <div className="flex gap-2">
                   {FIX_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => setEditing({ ...editing, type: t.value })}
+                      className={`flex-1 rounded-md border px-4 py-2 text-sm font-medium transition ${
+                        editing.type === t.value
+                          ? "border-gold bg-gold/10 text-gold"
+                          : "border-border bg-secondary/20 text-muted-foreground hover:text-cream"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
                   ))}
-                </select>
+                </div>
               </Field>
               <Field label="Summary">
                 <textarea
