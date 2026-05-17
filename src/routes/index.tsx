@@ -673,22 +673,87 @@ function LoadingState({ line }: { line: string }) {
   );
 }
 
-function PostSubmit({ firstName, onReset }: { firstName: string; onReset: () => void }) {
+function PostSubmit({
+  firstName, match, onReset,
+}: { firstName: string; match: MatchResult | null; onReset: () => void }) {
+  const verdict = match?.verdict ?? "gap";
+  const label =
+    verdict === "match" ? "Match found" :
+    verdict === "recommended" ? "Recommended fix" :
+    "Gap identified";
+  const tone =
+    verdict === "match" ? "text-gold" :
+    verdict === "recommended" ? "text-cream" :
+    "text-gold";
+
   return (
-    <div className="py-8 text-center">
-      <div className="mb-3 text-xs uppercase tracking-[0.25em] text-gold">On it</div>
+    <div className="py-4">
+      <div className={`mb-3 text-xs uppercase tracking-[0.25em] ${tone}`}>{label}</div>
       <h2 className="font-display text-3xl font-black italic text-cream md:text-4xl">
-        {firstName ? `Thanks, ${firstName}.` : "Thanks."} We've got your PMO.
+        {match?.headline ?? (firstName ? `Thanks, ${firstName}.` : "Thanks.")}
       </h2>
-      <p className="mt-4 text-muted-foreground">
-        We'll review your submission and send your fix — or an honest answer — to your inbox.
-      </p>
-      <button
-        onClick={onReset}
-        className="mt-8 text-sm uppercase tracking-wider text-gold hover:underline"
-      >
-        ← Submit another PMO
-      </button>
+
+      {match?.reasoning && (
+        <p className="mt-5 text-muted-foreground leading-relaxed">
+          {match.reasoning}
+        </p>
+      )}
+
+      {match?.matched_fix && (
+        <div className="mt-6 rounded-xl border border-gold/40 bg-gold/5 p-6">
+          <div className="text-xs uppercase tracking-[0.2em] text-gold">
+            {match.matched_fix.type.replace(/_/g, " ")}
+          </div>
+          <h3 className="mt-2 text-2xl font-bold text-cream">{match.matched_fix.name}</h3>
+          <p className="mt-2 text-muted-foreground">{match.matched_fix.summary}</p>
+          {match.matched_fix.price_note && (
+            <div className="mt-3 text-sm text-gold/80">{match.matched_fix.price_note}</div>
+          )}
+          {match.matched_fix.url && (
+            <a
+              href={match.matched_fix.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center justify-center rounded-lg bg-gold px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-gold-foreground transition hover:brightness-110"
+            >
+              Get this fix →
+            </a>
+          )}
+        </div>
+      )}
+
+      {match?.next_steps && match.next_steps.length > 0 && (
+        <div className="mt-6">
+          <div className="text-xs uppercase tracking-[0.2em] text-gold">Next steps</div>
+          <ul className="mt-3 space-y-2">
+            {match.next_steps.map((step, i) => (
+              <li key={i} className="flex gap-3 text-muted-foreground">
+                <span className="text-gold">→</span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {verdict === "gap" && (
+        <p className="mt-6 rounded-lg border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
+          No fix exists yet — which means you just found one. We'll review this as a build candidate
+          and reach out{firstName ? `, ${firstName}` : ""}.
+        </p>
+      )}
+
+      <div className="mt-8 flex items-center gap-6">
+        <button
+          onClick={onReset}
+          className="text-sm uppercase tracking-wider text-gold hover:underline"
+        >
+          ← Submit another PMO
+        </button>
+        <span className="text-xs text-muted-foreground">
+          A copy is on its way to your inbox.
+        </span>
+      </div>
     </div>
   );
 }
