@@ -26,6 +26,7 @@ type Submission = {
   user_id: string | null;
   description: string;
   category: string | null;
+  email: string | null;
   created_at: string;
 };
 
