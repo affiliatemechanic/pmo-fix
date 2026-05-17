@@ -236,8 +236,8 @@ function Index() {
       <section id="start" className="mx-auto max-w-3xl px-6 pb-24">
         <div className="rounded-2xl border border-border bg-card p-8 shadow-crest md:p-12">
           {submitted ? (
-            <PostSubmit firstName={firstName} onReset={() => {
-              setSubmitted(false); setStep(1);
+            <PostSubmit firstName={firstName} match={match} onReset={() => {
+              setSubmitted(false); setStep(1); setMatch(null);
               setPmo(""); setCategory(null); setPlatforms([]); setPlatformsOther("");
               setFrequency(null); setCost(null); setDreamFix(""); setFirstName(""); setWorkType(null);
             }} />
