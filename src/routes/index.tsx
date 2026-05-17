@@ -41,6 +41,40 @@ function Index() {
   const [pmo, setPmo] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data }) => {
+      setUser(data.session?.user ?? null);
+      if (data.session) {
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.session.user.id);
+        setIsAdmin(!!roles?.some((r) => r.role === "admin"));
+      }
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, session) => {
+      setUser(session?.user ?? null);
+      if (session) {
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id);
+        setIsAdmin(!!roles?.some((r) => r.role === "admin"));
+      } else {
+        setIsAdmin(false);
+      }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    toast.success("Signed out.");
+  };
 
   return (
     <main className="min-h-screen">
@@ -51,10 +85,21 @@ function Index() {
             PMO<span className="text-foreground">fix</span>
           </div>
         </div>
-        <nav className="hidden gap-8 text-sm text-muted-foreground md:flex">
-          <a href="#how" className="hover:text-gold transition">How it works</a>
-          <a href="#options" className="hover:text-gold transition">Build options</a>
-          <a href="#start" className="hover:text-gold transition">Start</a>
+        <nav className="flex items-center gap-6 text-sm text-muted-foreground">
+          <a href="#how" className="hidden hover:text-gold transition md:inline">How it works</a>
+          <a href="#options" className="hidden hover:text-gold transition md:inline">Build options</a>
+          {isAdmin && (
+            <Link to="/admin" className="hover:text-gold transition">Admin</Link>
+          )}
+          {user ? (
+            <button onClick={handleSignOut} className="hover:text-gold transition">
+              Sign out
+            </button>
+          ) : (
+            <Link to="/auth" className="rounded-md border border-gold/40 px-3 py-1.5 text-gold hover:bg-gold/10 transition">
+              Sign in
+            </Link>
+          )}
         </nav>
       </header>
 
