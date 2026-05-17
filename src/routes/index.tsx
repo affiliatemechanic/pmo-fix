@@ -157,22 +157,30 @@ function Index() {
       return;
     }
     setSaving(true);
-    const { error } = await supabase.from("pmo_submissions").insert({
-      description: pmo.trim(),
-      email: email.trim(),
-      category,
-      platforms: platforms.length ? platforms : null,
-      platforms_other: platformsOther.trim() || null,
-      frequency,
-      cost_impact: cost,
-      dream_fix: dreamFix.trim() || null,
-      first_name: firstName.trim() || null,
-      work_type: workType,
-      user_id: user?.id ?? null,
-    });
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    setSubmitted(true);
+    try {
+      const result = await runMatch({
+        data: {
+          description: pmo.trim(),
+          email: email.trim(),
+          category,
+          platforms: platforms.length ? platforms : null,
+          platforms_other: platformsOther.trim() || null,
+          frequency,
+          cost_impact: cost,
+          dream_fix: dreamFix.trim() || null,
+          first_name: firstName.trim() || null,
+          work_type: workType,
+          user_id: user?.id ?? null,
+        },
+      });
+      setMatch(result);
+      setSubmitted(true);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Something went wrong.";
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const canQ1 = pmo.trim().length >= 5;
