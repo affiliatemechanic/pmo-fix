@@ -46,7 +46,10 @@ type Fix = {
   updated_at: string;
 };
 
-const FIX_TYPES = ["internal_product", "recommended", "affiliate"] as const;
+const FIX_TYPES = [
+  { value: "in_house", label: "In-house" },
+  { value: "affiliate", label: "Affiliate" },
+] as const;
 
 function AdminPage() {
   const navigate = useNavigate();
