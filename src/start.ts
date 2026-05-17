@@ -1,9 +1,10 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 
 import { renderErrorPage } from "./lib/error-page";
 
-const errorMiddleware = createMiddleware().server(async ({ next, request }) => {
-  const url = new URL(request.url);
+const errorMiddleware = createMiddleware().server(async ({ next }) => {
+  const url = new URL(getRequest().url);
   if (url.pathname.startsWith("/lovable/")) {
     return next();
   }
