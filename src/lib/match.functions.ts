@@ -149,5 +149,44 @@ Pick the best match or declare a gap.`;
       .update({ match_result: result, matched_at: new Date().toISOString() })
       .eq("id", submission.id);
 
+    // Send result email (fire-and-forget — never fail the submission on email errors)
+    try {
+      const origin = getRequestUrl().origin;
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+      await fetch(`${origin}/lovable/email/transactional/send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({
+          templateName: "match-result",
+          recipientEmail: submission.email,
+          idempotencyKey: `match-result-${submission.id}`,
+          templateData: {
+            firstName: submission.first_name ?? undefined,
+            verdict: result.verdict,
+            headline: result.headline,
+            reasoning: result.reasoning,
+            nextSteps: result.next_steps,
+            matchedFix: matchedFix
+              ? {
+                  name: matchedFix.name,
+                  summary: matchedFix.summary,
+                  url: matchedFix.url || undefined,
+                  price_note: matchedFix.price_note || undefined,
+                }
+              : null,
+            problemPreview:
+              submission.description.length > 240
+                ? submission.description.slice(0, 237) + "..."
+                : submission.description,
+          },
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to send match result email", err);
+    }
+
     return result;
   });
