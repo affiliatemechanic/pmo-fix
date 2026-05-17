@@ -1,6 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import logo from "@/assets/pmofix-logo.png";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import type { User } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -38,6 +41,40 @@ function Index() {
   const [pmo, setPmo] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data }) => {
+      setUser(data.session?.user ?? null);
+      if (data.session) {
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.session.user.id);
+        setIsAdmin(!!roles?.some((r) => r.role === "admin"));
+      }
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, session) => {
+      setUser(session?.user ?? null);
+      if (session) {
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id);
+        setIsAdmin(!!roles?.some((r) => r.role === "admin"));
+      } else {
+        setIsAdmin(false);
+      }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    toast.success("Signed out.");
+  };
 
   return (
     <main className="min-h-screen">
@@ -48,10 +85,21 @@ function Index() {
             PMO<span className="text-foreground">fix</span>
           </div>
         </div>
-        <nav className="hidden gap-8 text-sm text-muted-foreground md:flex">
-          <a href="#how" className="hover:text-gold transition">How it works</a>
-          <a href="#options" className="hover:text-gold transition">Build options</a>
-          <a href="#start" className="hover:text-gold transition">Start</a>
+        <nav className="flex items-center gap-6 text-sm text-muted-foreground">
+          <a href="#how" className="hidden hover:text-gold transition md:inline">How it works</a>
+          <a href="#options" className="hidden hover:text-gold transition md:inline">Build options</a>
+          {isAdmin && (
+            <Link to="/admin" className="hover:text-gold transition">Admin</Link>
+          )}
+          {user ? (
+            <button onClick={handleSignOut} className="hover:text-gold transition">
+              Sign out
+            </button>
+          ) : (
+            <Link to="/auth" className="rounded-md border border-gold/40 px-3 py-1.5 text-gold hover:bg-gold/10 transition">
+              Sign in
+            </Link>
+          )}
         </nav>
       </header>
 
@@ -88,9 +136,20 @@ function Index() {
         <div className="rounded-2xl border border-border bg-card p-8 shadow-crest md:p-12">
           {!submitted ? (
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 if (pmo.trim().length < 5) return;
+                setSaving(true);
+                const { error } = await supabase.from("pmo_submissions").insert({
+                  description: pmo.trim(),
+                  category,
+                  user_id: user?.id ?? null,
+                });
+                setSaving(false);
+                if (error) {
+                  toast.error(error.message);
+                  return;
+                }
                 setSubmitted(true);
               }}
             >
@@ -130,10 +189,10 @@ function Index() {
 
               <button
                 type="submit"
-                disabled={pmo.trim().length < 5}
+                disabled={pmo.trim().length < 5 || saving}
                 className="mt-8 inline-flex w-full items-center justify-center rounded-lg bg-gold px-6 py-4 text-base font-bold uppercase tracking-wide text-gold-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 md:w-auto"
               >
-                Fix this →
+                {saving ? "Sending…" : "Fix this →"}
               </button>
               <p className="mt-4 text-xs text-muted-foreground">
                 No spam. No pitches. Just your fix.
