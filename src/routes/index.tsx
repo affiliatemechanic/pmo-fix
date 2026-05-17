@@ -33,20 +33,81 @@ export const Route = createFileRoute("/")({
 });
 
 const CATEGORIES = [
-  "Marketing", "Content", "Video", "Email", "Tech",
-  "Operations", "eCommerce", "SEO", "Social", "Finance", "AI", "Other",
+  "📣 Marketing & Advertising",
+  "✍️ Content & Writing",
+  "🎥 Video & Media",
+  "📧 Email & Communication",
+  "🔧 Tech & Software",
+  "📊 Business Operations",
+  "🛒 eCommerce & Sales",
+  "🔍 SEO & Traffic",
+  "📱 Social Media",
+  "💰 Finance & Payments",
+  "🤖 AI & Automation",
+  "🌐 Something else entirely",
+];
+
+const PLATFORMS = [
+  "WordPress", "Shopify / WooCommerce", "Wix / Squarespace",
+  "Excel / Google Sheets", "Google Docs / Notion", "YouTube",
+  "TikTok / Instagram / Facebook", "Premiere / DaVinci / Final Cut",
+  "CapCut / Descript", "Gmail / Outlook",
+  "AWeber / Mailchimp / ActiveCampaign", "ClickFunnels / Leadpages / Kajabi",
+  "Canva / Photoshop / Figma", "ChatGPT / Claude / Gemini",
+  "Zapier / Make / Automation tools", "Stripe / PayPal / Payments",
+  "My own custom setup", "None of these",
+];
+
+const FREQUENCIES = [
+  "😤 Once in a while — but when it does, ugh",
+  "🔁 Weekly — it's becoming a ritual",
+  "📅 Daily — part of my routine unfortunately",
+  "🔥 Constantly — it literally never stops",
+];
+
+const COSTS = [
+  "😒 Just annoying — no real damage",
+  "⏰ Hours of lost time every week",
+  "💸 Real money — this is a legit business problem",
+  "🚨 It's actively killing my productivity or revenue",
+];
+
+const WORK_TYPES = [
+  "🧑‍💻 Solo creator or freelancer",
+  "🏢 Small business owner",
+  "🏦 Agency or consultant",
+  "👔 Corporate / enterprise team",
+  "😄 Just a human with a problem",
+];
+
+const LOADING_LINES = [
+  "Matching your PMO to known solutions...",
+  "Checking our product fleet...",
+  "Searching the affiliate library...",
+  "Scoring your problem for build-worthiness...",
+  "Almost there...",
 ];
 
 function Index() {
+  const [step, setStep] = useState(1);
   const [pmo, setPmo] = useState("");
-  const [email, setEmail] = useState("");
   const [category, setCategory] = useState<string | null>(null);
+  const [platforms, setPlatforms] = useState<string[]>([]);
+  const [platformsOther, setPlatformsOther] = useState("");
+  const [frequency, setFrequency] = useState<string | null>(null);
+  const [cost, setCost] = useState<string | null>(null);
+  const [dreamFix, setDreamFix] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [email, setEmail] = useState("");
+  const [workType, setWorkType] = useState<string | null>(null);
+
   const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loadingLine, setLoadingLine] = useState(0);
+
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [saving, setSaving] = useState(false);
 
-  // Prefill email when signed in
   useEffect(() => {
     if (user?.email) setEmail(user.email);
   }, [user]);
@@ -56,9 +117,7 @@ function Index() {
       setUser(data.session?.user ?? null);
       if (data.session) {
         const { data: roles } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", data.session.user.id);
+          .from("user_roles").select("role").eq("user_id", data.session.user.id);
         setIsAdmin(!!roles?.some((r) => r.role === "admin"));
       }
     });
@@ -66,21 +125,55 @@ function Index() {
       setUser(session?.user ?? null);
       if (session) {
         const { data: roles } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.user.id);
+          .from("user_roles").select("role").eq("user_id", session.user.id);
         setIsAdmin(!!roles?.some((r) => r.role === "admin"));
-      } else {
-        setIsAdmin(false);
-      }
+      } else setIsAdmin(false);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!saving) return;
+    const id = setInterval(() => setLoadingLine((i) => (i + 1) % LOADING_LINES.length), 2000);
+    return () => clearInterval(id);
+  }, [saving]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     toast.success("Signed out.");
   };
+
+  const togglePlatform = (p: string) =>
+    setPlatforms((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
+
+  const submit = async () => {
+    const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+    if (!emailOk) {
+      toast.error("Please enter a valid email so we can send your fix.");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from("pmo_submissions").insert({
+      description: pmo.trim(),
+      email: email.trim(),
+      category,
+      platforms: platforms.length ? platforms : null,
+      platforms_other: platformsOther.trim() || null,
+      frequency,
+      cost_impact: cost,
+      dream_fix: dreamFix.trim() || null,
+      first_name: firstName.trim() || null,
+      work_type: workType,
+      user_id: user?.id ?? null,
+    });
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    setSubmitted(true);
+  };
+
+  const canQ1 = pmo.trim().length >= 5;
+  const canQ3 = !!frequency && !!cost;
+  const canSubmit = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
 
   return (
     <main className="min-h-screen">
@@ -94,13 +187,9 @@ function Index() {
         <nav className="flex items-center gap-6 text-sm text-muted-foreground">
           <a href="#how" className="hidden hover:text-gold transition md:inline">How it works</a>
           <a href="#options" className="hidden hover:text-gold transition md:inline">Build options</a>
-          {isAdmin && (
-            <Link to="/admin" className="hover:text-gold transition">Admin</Link>
-          )}
+          {isAdmin && <Link to="/admin" className="hover:text-gold transition">Admin</Link>}
           {user ? (
-            <button onClick={handleSignOut} className="hover:text-gold transition">
-              Sign out
-            </button>
+            <button onClick={handleSignOut} className="hover:text-gold transition">Sign out</button>
           ) : (
             <Link to="/auth" className="rounded-md border border-gold/40 px-3 py-1.5 text-gold hover:bg-gold/10 transition">
               Sign in
@@ -124,122 +213,259 @@ function Index() {
               throw your laptop. We'll match it to a fix — or build one.
             </p>
           </div>
-
-          {/* Crest */}
           <div className="relative flex justify-center">
             <div className="absolute -inset-10 rounded-full bg-gold/10 blur-3xl" />
-            <img
-              src={logo}
-              alt="PMOfix crest — We'll Fix It"
-              className="relative w-full max-w-md drop-shadow-2xl"
-            />
+            <img src={logo} alt="PMOfix crest — We'll Fix It" className="relative w-full max-w-md drop-shadow-2xl" />
           </div>
         </div>
       </section>
 
-      {/* Questionnaire entry */}
+      {/* Questionnaire */}
       <section id="start" className="mx-auto max-w-3xl px-6 pb-24">
         <div className="rounded-2xl border border-border bg-card p-8 shadow-crest md:p-12">
-          {!submitted ? (
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (pmo.trim().length < 5) return;
-                const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
-                if (!emailOk) {
-                  toast.error("Please enter a valid email so we can reach you.");
-                  return;
-                }
-                setSaving(true);
-                const { error } = await supabase.from("pmo_submissions").insert({
-                  description: pmo.trim(),
-                  email: email.trim(),
-                  category,
-                  user_id: user?.id ?? null,
-                });
-                setSaving(false);
-                if (error) {
-                  toast.error(error.message);
-                  return;
-                }
-                setSubmitted(true);
-              }}
-            >
-              <div className="mb-2 text-xs uppercase tracking-[0.25em] text-gold">
-                Step 1 of 5
-              </div>
-              <h2 className="text-3xl font-black text-cream md:text-4xl">
-                Tell us everything. Don't hold back.
-              </h2>
-              <textarea
-                value={pmo}
-                onChange={(e) => setPmo(e.target.value)}
-                placeholder="It happens every time I try to..."
-                rows={5}
-                className="mt-6 w-full resize-none rounded-lg border border-border bg-input/40 p-4 text-base text-cream placeholder:text-muted-foreground/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"
-              />
-
-              <div className="mt-6">
-                <label className="mb-2 block text-xs uppercase tracking-[0.2em] text-gold">
-                  Your email <span className="text-muted-foreground normal-case tracking-normal">— so we can reach you with your fix</span>
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
-                  maxLength={255}
-                  className="w-full rounded-lg border border-border bg-input/40 p-3 text-base text-cream placeholder:text-muted-foreground/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"
-                />
-              </div>
-              <div className="mt-6">
-                <div className="mb-3 text-sm text-muted-foreground">Pick a category (optional)</div>
-                <div className="flex flex-wrap gap-2">
-                  {CATEGORIES.map((c) => (
-                    <button
-                      type="button"
-                      key={c}
-                      onClick={() => setCategory(category === c ? null : c)}
-                      className={`rounded-full border px-4 py-1.5 text-sm transition ${
-                        category === c
-                          ? "border-gold bg-gold text-gold-foreground"
-                          : "border-border bg-secondary/60 text-muted-foreground hover:border-gold/60 hover:text-cream"
-                      }`}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={pmo.trim().length < 5 || saving}
-                className="mt-8 inline-flex w-full items-center justify-center rounded-lg bg-gold px-6 py-4 text-base font-bold uppercase tracking-wide text-gold-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 md:w-auto"
-              >
-                {saving ? "Sending…" : "Fix this →"}
-              </button>
-              <p className="mt-4 text-xs text-muted-foreground">
-                No spam. No pitches. Just your fix.
-              </p>
-            </form>
+          {submitted ? (
+            <PostSubmit firstName={firstName} onReset={() => {
+              setSubmitted(false); setStep(1);
+              setPmo(""); setCategory(null); setPlatforms([]); setPlatformsOther("");
+              setFrequency(null); setCost(null); setDreamFix(""); setFirstName(""); setWorkType(null);
+            }} />
+          ) : saving ? (
+            <LoadingState line={LOADING_LINES[loadingLine]} />
           ) : (
-            <div className="py-8 text-center">
-              <div className="mb-3 text-xs uppercase tracking-[0.25em] text-gold">Got it</div>
-              <h2 className="text-3xl font-black text-cream md:text-4xl">
-                We hear you. Now let's match it.
-              </h2>
-              <p className="mt-4 text-muted-foreground">
-                The full 5-step questionnaire and AI match engine ship next. This is the entry.
-              </p>
-              <button
-                onClick={() => { setSubmitted(false); setPmo(""); setCategory(null); }}
-                className="mt-8 text-sm uppercase tracking-wider text-gold hover:underline"
-              >
-                ← Start over
-              </button>
-            </div>
+            <>
+              <StepHeader step={step} />
+
+              {step === 1 && (
+                <div>
+                  <h2 className="font-display text-3xl font-black italic text-cream md:text-4xl">
+                    "OK. Let it out."
+                  </h2>
+                  <p className="mt-3 text-muted-foreground">
+                    Don't sugarcoat it. The more specific you are, the better we can fix it.
+                  </p>
+                  <label className="mt-6 block text-xs uppercase tracking-[0.2em] text-gold">
+                    What's pissing you off?
+                  </label>
+                  <textarea
+                    value={pmo}
+                    onChange={(e) => setPmo(e.target.value)}
+                    placeholder="Every time I try to _______, it takes forever because _______ and I end up _______..."
+                    rows={5}
+                    maxLength={5000}
+                    className="mt-2 w-full resize-none rounded-lg border border-border bg-input/40 p-4 text-base text-cream placeholder:text-muted-foreground/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"
+                  />
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    No word limit. Vent away. We've heard worse. 😄
+                  </p>
+
+                  <div className="mt-6">
+                    <div className="mb-3 text-sm text-muted-foreground">
+                      What's the closest category? <span className="italic">(helps us find your fix faster)</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {CATEGORIES.map((c) => (
+                        <Chip key={c} active={category === c} onClick={() => setCategory(category === c ? null : c)}>
+                          {c}
+                        </Chip>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Nav
+                    onNext={() => setStep(2)}
+                    nextDisabled={!canQ1}
+                    transition="Got it. Now tell us where this is happening..."
+                  />
+                </div>
+              )}
+
+              {step === 2 && (
+                <div>
+                  <h2 className="font-display text-3xl font-black italic text-cream md:text-4xl">
+                    "Where's the crime scene?"
+                  </h2>
+                  <p className="mt-3 text-muted-foreground">
+                    Which tools or platforms are involved in this mess?
+                  </p>
+                  <div className="mt-6 mb-3 text-sm text-muted-foreground">
+                    Select everything that applies <span className="italic">(click to highlight)</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {PLATFORMS.map((p) => (
+                      <Chip key={p} active={platforms.includes(p)} onClick={() => togglePlatform(p)}>
+                        {p}
+                      </Chip>
+                    ))}
+                  </div>
+
+                  <label className="mt-6 block text-xs uppercase tracking-[0.2em] text-gold">
+                    Anything else? Type it here.
+                  </label>
+                  <input
+                    value={platformsOther}
+                    onChange={(e) => setPlatformsOther(e.target.value)}
+                    placeholder="Also happens in..."
+                    maxLength={500}
+                    className="mt-2 w-full rounded-lg border border-border bg-input/40 p-3 text-base text-cream placeholder:text-muted-foreground/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"
+                  />
+
+                  <Nav
+                    onBack={() => setStep(1)}
+                    onNext={() => setStep(3)}
+                    transition="Noted. How bad is it actually?"
+                  />
+                </div>
+              )}
+
+              {step === 3 && (
+                <div>
+                  <h2 className="font-display text-3xl font-black italic text-cream md:text-4xl">
+                    "On a scale of 'mildly annoying' to 'I want to flip my desk'..."
+                  </h2>
+                  <p className="mt-3 text-muted-foreground">
+                    Help us understand how much this is actually costing you.
+                  </p>
+
+                  <div className="mt-6">
+                    <div className="mb-3 text-sm text-muted-foreground">How often does this happen?</div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {FREQUENCIES.map((f) => (
+                        <PickButton key={f} active={frequency === f} onClick={() => setFrequency(f)}>
+                          {f}
+                        </PickButton>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <div className="mb-3 text-sm text-muted-foreground">What's it actually costing you?</div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {COSTS.map((c) => (
+                        <PickButton key={c} active={cost === c} onClick={() => setCost(c)}>
+                          {c}
+                        </PickButton>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Nav
+                    onBack={() => setStep(2)}
+                    onNext={() => setStep(4)}
+                    nextDisabled={!canQ3}
+                    transition="OK we feel that. Now — what would the perfect fix actually look like?"
+                  />
+                </div>
+              )}
+
+              {step === 4 && (
+                <div>
+                  <h2 className="font-display text-3xl font-black italic text-cream md:text-4xl">
+                    "Magic wand time."
+                  </h2>
+                  <p className="mt-3 text-muted-foreground">
+                    Don't worry about whether it exists. Just describe the ideal version of fixed.
+                  </p>
+                  <label className="mt-6 block text-xs uppercase tracking-[0.2em] text-gold">
+                    If someone handed you the perfect solution tomorrow, what would it do?
+                  </label>
+                  <textarea
+                    value={dreamFix}
+                    onChange={(e) => setDreamFix(e.target.value)}
+                    placeholder="Ideally it would just _______ without me having to _______ every single time..."
+                    rows={5}
+                    maxLength={5000}
+                    className="mt-2 w-full resize-none rounded-lg border border-border bg-input/40 p-4 text-base text-cream placeholder:text-muted-foreground/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"
+                  />
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Dream big. This is literally how we decide what to build next.
+                  </p>
+
+                  <Nav
+                    onBack={() => setStep(3)}
+                    onNext={() => setStep(5)}
+                    transition="Almost done. Just need to know where to send your fix."
+                  />
+                </div>
+              )}
+
+              {step === 5 && (
+                <div>
+                  <h2 className="font-display text-3xl font-black italic text-cream md:text-4xl">
+                    "Who do we send this to?"
+                  </h2>
+                  <p className="mt-3 text-muted-foreground">
+                    We'll match your PMO to a fix — or tell you honestly if one doesn't exist yet.
+                  </p>
+
+                  <div className="mt-6">
+                    <label className="block text-xs uppercase tracking-[0.2em] text-gold">
+                      What do we call you?
+                    </label>
+                    <input
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="Your first name"
+                      maxLength={100}
+                      className="mt-2 w-full rounded-lg border border-border bg-input/40 p-3 text-base text-cream placeholder:text-muted-foreground/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"
+                    />
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="block text-xs uppercase tracking-[0.2em] text-gold">
+                      Where should we send your fix?
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      maxLength={255}
+                      className="mt-2 w-full rounded-lg border border-border bg-input/40 p-3 text-base text-cream placeholder:text-muted-foreground/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"
+                    />
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      No spam. No pitches. Just your fix — and maybe a heads up when we build something for it.
+                    </p>
+                  </div>
+
+                  <div className="mt-6">
+                    <div className="mb-3 text-sm text-muted-foreground">
+                      What kind of work do you do? <span className="italic">(optional — helps us match better)</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {WORK_TYPES.map((w) => (
+                        <Chip key={w} active={workType === w} onClick={() => setWorkType(workType === w ? null : w)}>
+                          {w}
+                        </Chip>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-8 flex flex-col items-start gap-3">
+                    <div className="flex w-full items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setStep(4)}
+                        className="text-sm uppercase tracking-wider text-muted-foreground hover:text-cream transition"
+                      >
+                        ← Back
+                      </button>
+                      <button
+                        type="button"
+                        onClick={submit}
+                        disabled={!canSubmit}
+                        className="inline-flex items-center justify-center rounded-lg bg-gold px-6 py-4 text-base font-bold uppercase tracking-wide text-gold-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Find My Fix →
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground italic">
+                      We'll scan every solution we know. If it doesn't exist — we'll tell you what we can do about it.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
@@ -333,6 +559,124 @@ function Option({
       <div className="text-xs uppercase tracking-[0.2em] text-gold">{tag}</div>
       <h3 className="mt-3 text-2xl font-bold text-cream">{title}</h3>
       <p className="mt-3 text-muted-foreground">{body}</p>
+    </div>
+  );
+}
+
+function StepHeader({ step }: { step: number }) {
+  const labels = ["PMO #1", "PMO #2", "PMO #3", "PMO #4", "Last one, we promise."];
+  return (
+    <div className="mb-4 flex items-center justify-between">
+      <div className="text-xs uppercase tracking-[0.25em] text-gold">{labels[step - 1]}</div>
+      <div className="flex gap-1.5">
+        {[1, 2, 3, 4, 5].map((s) => (
+          <span
+            key={s}
+            className={`h-1.5 w-6 rounded-full transition ${
+              s <= step ? "bg-gold" : "bg-border"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Chip({
+  active, onClick, children,
+}: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-4 py-1.5 text-sm transition ${
+        active
+          ? "border-gold bg-gold text-gold-foreground"
+          : "border-border bg-secondary/60 text-muted-foreground hover:border-gold/60 hover:text-cream"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function PickButton({
+  active, onClick, children,
+}: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg border px-4 py-3 text-left text-sm transition ${
+        active
+          ? "border-gold bg-gold/10 text-cream"
+          : "border-border bg-secondary/40 text-muted-foreground hover:border-gold/60 hover:text-cream"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Nav({
+  onBack, onNext, nextDisabled, transition,
+}: { onBack?: () => void; onNext: () => void; nextDisabled?: boolean; transition?: string }) {
+  return (
+    <div className="mt-8 flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="text-sm uppercase tracking-wider text-muted-foreground hover:text-cream transition"
+          >
+            ← Back
+          </button>
+        ) : <span />}
+        <button
+          type="button"
+          onClick={onNext}
+          disabled={nextDisabled}
+          className="inline-flex items-center justify-center rounded-lg bg-gold px-6 py-3 text-sm font-bold uppercase tracking-wide text-gold-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Continue →
+        </button>
+      </div>
+      {transition && (
+        <p className="text-xs italic text-muted-foreground">{transition}</p>
+      )}
+    </div>
+  );
+}
+
+function LoadingState({ line }: { line: string }) {
+  return (
+    <div className="py-12 text-center">
+      <div className="mx-auto mb-6 h-12 w-12 animate-spin rounded-full border-2 border-gold/30 border-t-gold" />
+      <h2 className="font-display text-3xl font-black italic text-cream md:text-4xl">
+        Scanning the fix vault...
+      </h2>
+      <p className="mt-4 text-muted-foreground italic transition-opacity">{line}</p>
+    </div>
+  );
+}
+
+function PostSubmit({ firstName, onReset }: { firstName: string; onReset: () => void }) {
+  return (
+    <div className="py-8 text-center">
+      <div className="mb-3 text-xs uppercase tracking-[0.25em] text-gold">On it</div>
+      <h2 className="font-display text-3xl font-black italic text-cream md:text-4xl">
+        {firstName ? `Thanks, ${firstName}.` : "Thanks."} We've got your PMO.
+      </h2>
+      <p className="mt-4 text-muted-foreground">
+        We'll review your submission and send your fix — or an honest answer — to your inbox.
+      </p>
+      <button
+        onClick={onReset}
+        className="mt-8 text-sm uppercase tracking-wider text-gold hover:underline"
+      >
+        ← Submit another PMO
+      </button>
     </div>
   );
 }

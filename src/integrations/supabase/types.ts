@@ -104,27 +104,48 @@ export type Database = {
       pmo_submissions: {
         Row: {
           category: string | null
+          cost_impact: string | null
           created_at: string
           description: string
+          dream_fix: string | null
           email: string | null
+          first_name: string | null
+          frequency: string | null
           id: string
+          platforms: string[] | null
+          platforms_other: string | null
           user_id: string | null
+          work_type: string | null
         }
         Insert: {
           category?: string | null
+          cost_impact?: string | null
           created_at?: string
           description: string
+          dream_fix?: string | null
           email?: string | null
+          first_name?: string | null
+          frequency?: string | null
           id?: string
+          platforms?: string[] | null
+          platforms_other?: string | null
           user_id?: string | null
+          work_type?: string | null
         }
         Update: {
           category?: string | null
+          cost_impact?: string | null
           created_at?: string
           description?: string
+          dream_fix?: string | null
           email?: string | null
+          first_name?: string | null
+          frequency?: string | null
           id?: string
+          platforms?: string[] | null
+          platforms_other?: string | null
           user_id?: string | null
+          work_type?: string | null
         }
         Relationships: []
       }
