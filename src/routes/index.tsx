@@ -136,9 +136,20 @@ function Index() {
         <div className="rounded-2xl border border-border bg-card p-8 shadow-crest md:p-12">
           {!submitted ? (
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 if (pmo.trim().length < 5) return;
+                setSaving(true);
+                const { error } = await supabase.from("pmo_submissions").insert({
+                  description: pmo.trim(),
+                  category,
+                  user_id: user?.id ?? null,
+                });
+                setSaving(false);
+                if (error) {
+                  toast.error(error.message);
+                  return;
+                }
                 setSubmitted(true);
               }}
             >
