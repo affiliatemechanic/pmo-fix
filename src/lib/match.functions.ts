@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequestUrl } from "@tanstack/react-start/server";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
