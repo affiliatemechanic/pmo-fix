@@ -1,0 +1,152 @@
+import { createServerFn } from "@tanstack/react-start";
+import { generateText, Output } from "ai";
+import { z } from "zod";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { createLovableAiGatewayProvider } from "./ai-gateway";
+
+const SubmissionInputSchema = z.object({
+  description: z.string().min(5).max(5000),
+  email: z.string().email().max(255),
+  category: z.string().max(100).nullable().optional(),
+  platforms: z.array(z.string().max(200)).max(30).nullable().optional(),
+  platforms_other: z.string().max(500).nullable().optional(),
+  frequency: z.string().max(50).nullable().optional(),
+  cost_impact: z.string().max(50).nullable().optional(),
+  dream_fix: z.string().max(5000).nullable().optional(),
+  first_name: z.string().max(100).nullable().optional(),
+  work_type: z.string().max(100).nullable().optional(),
+  user_id: z.string().uuid().nullable().optional(),
+});
+
+const MatchSchema = z.object({
+  verdict: z.enum(["match", "recommended", "gap"]),
+  confidence: z.enum(["low", "medium", "high"]),
+  matched_fix_id: z.string().nullable(),
+  headline: z.string().min(1).max(200),
+  reasoning: z.string().min(1).max(2000),
+  next_steps: z.array(z.string().min(1).max(400)).min(1).max(5),
+});
+
+export type MatchResult = z.infer<typeof MatchSchema> & {
+  matched_fix?: {
+    id: string;
+    name: string;
+    type: string;
+    summary: string;
+    url?: string;
+    price_note?: string;
+  } | null;
+  submission_id: string;
+};
+
+export const submitAndMatch = createServerFn({ method: "POST" })
+  .inputValidator((input) => SubmissionInputSchema.parse(input))
+  .handler(async ({ data }): Promise<MatchResult> => {
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("Missing LOVABLE_API_KEY");
+
+    // 1. Insert submission with admin client (bypasses RLS, returns id)
+    const { data: submission, error: insErr } = await supabaseAdmin
+      .from("pmo_submissions")
+      .insert({
+        description: data.description.trim(),
+        email: data.email.trim(),
+        category: data.category ?? null,
+        platforms: data.platforms?.length ? data.platforms : null,
+        platforms_other: data.platforms_other?.trim() || null,
+        frequency: data.frequency ?? null,
+        cost_impact: data.cost_impact ?? null,
+        dream_fix: data.dream_fix?.trim() || null,
+        first_name: data.first_name?.trim() || null,
+        work_type: data.work_type ?? null,
+        user_id: data.user_id ?? null,
+      })
+      .select()
+      .single();
+    if (insErr || !submission) throw new Error(insErr?.message ?? "Failed to save submission");
+
+    // 2. Load active fix catalog
+    const { data: fixes, error: fixErr } = await supabaseAdmin
+      .from("fixes")
+      .select("id, name, type, summary, description, url, categories, platforms, tags, price_note")
+      .eq("active", true);
+    if (fixErr) throw new Error(fixErr.message);
+
+    const catalog = (fixes ?? []).map((f) => ({
+      id: f.id,
+      name: f.name,
+      type: f.type,
+      summary: f.summary,
+      description: f.description ?? "",
+      categories: f.categories ?? [],
+      platforms: f.platforms ?? [],
+      tags: f.tags ?? [],
+      url: f.url ?? "",
+      price_note: f.price_note ?? "",
+    }));
+
+    // 3. Ask the AI to match
+    const gateway = createLovableAiGatewayProvider(apiKey);
+    const model = gateway("google/gemini-3-flash-preview");
+
+    const system = `You are the PMOfix matching engine. PMO = "Pisses Me Off" — a user-reported workflow problem.
+You receive a user's PMO submission and a catalog of known fixes (internal products, recommended tools, affiliate offers).
+Pick the single best matching fix from the catalog, or declare a gap. Be honest. If nothing genuinely fits, return "gap".
+
+Rules:
+- "match" = catalog has a fix that directly solves THIS problem. Set matched_fix_id to the catalog id.
+- "recommended" = catalog has a fix that partially helps or is adjacent but not exact. Set matched_fix_id.
+- "gap" = nothing in the catalog meaningfully addresses this. matched_fix_id = null. This becomes a candidate to build.
+- headline: punchy 1-line verdict in PMOfix voice (direct, slightly irreverent, no fluff, no emoji spam).
+- reasoning: 2-4 sentences explaining the match (or gap), referencing the user's actual problem.
+- next_steps: 2-4 short, concrete actions. For gaps, include "We're flagging this as a build candidate" or similar.
+- Never invent fixes that aren't in the catalog. Never use a matched_fix_id that isn't in the catalog.`;
+
+    const userPrompt = `USER SUBMISSION:
+Problem: ${submission.description}
+Category: ${submission.category ?? "(none)"}
+Platforms involved: ${(submission.platforms ?? []).join(", ") || "(none specified)"}
+Other platforms: ${submission.platforms_other ?? "(none)"}
+Frequency: ${submission.frequency ?? "(unspecified)"}
+Cost/impact: ${submission.cost_impact ?? "(unspecified)"}
+Dream fix: ${submission.dream_fix ?? "(none described)"}
+Work type: ${submission.work_type ?? "(unspecified)"}
+
+FIX CATALOG (${catalog.length} active):
+${catalog.length === 0 ? "(empty — no fixes in catalog yet, so verdict MUST be 'gap')" : JSON.stringify(catalog, null, 2)}
+
+Pick the best match or declare a gap.`;
+
+    const { experimental_output: output } = await generateText({
+      model,
+      system,
+      prompt: userPrompt,
+      experimental_output: Output.object({ schema: MatchSchema }),
+    });
+
+    // Validate matched_fix_id actually exists in catalog
+    let matchedFixId = output.matched_fix_id;
+    if (matchedFixId && !catalog.find((c) => c.id === matchedFixId)) {
+      matchedFixId = null;
+    }
+    const matchedFix = matchedFixId
+      ? catalog.find((c) => c.id === matchedFixId) ?? null
+      : null;
+    const verdict =
+      !matchedFix && output.verdict !== "gap" ? "gap" : output.verdict;
+
+    const result: MatchResult = {
+      ...output,
+      verdict,
+      matched_fix_id: matchedFixId,
+      matched_fix: matchedFix,
+      submission_id: submission.id,
+    };
+
+    await supabaseAdmin
+      .from("pmo_submissions")
+      .update({ match_result: result, matched_at: new Date().toISOString() })
+      .eq("id", submission.id);
+
+    return result;
+  });

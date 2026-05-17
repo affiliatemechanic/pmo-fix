@@ -101,6 +101,54 @@ export type Database = {
         }
         Relationships: []
       }
+      fixes: {
+        Row: {
+          active: boolean
+          categories: string[] | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          platforms: string[] | null
+          price_note: string | null
+          summary: string
+          tags: string[] | null
+          type: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          active?: boolean
+          categories?: string[] | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          platforms?: string[] | null
+          price_note?: string | null
+          summary: string
+          tags?: string[] | null
+          type?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          active?: boolean
+          categories?: string[] | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          platforms?: string[] | null
+          price_note?: string | null
+          summary?: string
+          tags?: string[] | null
+          type?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       pmo_submissions: {
         Row: {
           category: string | null
@@ -112,6 +160,8 @@ export type Database = {
           first_name: string | null
           frequency: string | null
           id: string
+          match_result: Json | null
+          matched_at: string | null
           platforms: string[] | null
           platforms_other: string | null
           user_id: string | null
@@ -127,6 +177,8 @@ export type Database = {
           first_name?: string | null
           frequency?: string | null
           id?: string
+          match_result?: Json | null
+          matched_at?: string | null
           platforms?: string[] | null
           platforms_other?: string | null
           user_id?: string | null
@@ -142,6 +194,8 @@ export type Database = {
           first_name?: string | null
           frequency?: string | null
           id?: string
+          match_result?: Json | null
+          matched_at?: string | null
           platforms?: string[] | null
           platforms_other?: string | null
           user_id?: string | null
