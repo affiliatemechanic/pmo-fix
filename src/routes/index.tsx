@@ -145,9 +145,15 @@ function Index() {
               onSubmit={async (e) => {
                 e.preventDefault();
                 if (pmo.trim().length < 5) return;
+                const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+                if (!emailOk) {
+                  toast.error("Please enter a valid email so we can reach you.");
+                  return;
+                }
                 setSaving(true);
                 const { error } = await supabase.from("pmo_submissions").insert({
                   description: pmo.trim(),
+                  email: email.trim(),
                   category,
                   user_id: user?.id ?? null,
                 });
@@ -173,6 +179,20 @@ function Index() {
                 className="mt-6 w-full resize-none rounded-lg border border-border bg-input/40 p-4 text-base text-cream placeholder:text-muted-foreground/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"
               />
 
+              <div className="mt-6">
+                <label className="mb-2 block text-xs uppercase tracking-[0.2em] text-gold">
+                  Your email <span className="text-muted-foreground normal-case tracking-normal">— so we can reach you with your fix</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  maxLength={255}
+                  className="w-full rounded-lg border border-border bg-input/40 p-3 text-base text-cream placeholder:text-muted-foreground/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"
+                />
+              </div>
               <div className="mt-6">
                 <div className="mb-3 text-sm text-muted-foreground">Pick a category (optional)</div>
                 <div className="flex flex-wrap gap-2">
