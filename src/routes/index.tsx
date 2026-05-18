@@ -7,6 +7,36 @@ import { submitAndMatch, type MatchResult } from "@/lib/match.functions";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 
+function clientFallbackMatch(): MatchResult {
+  return {
+    verdict: "gap",
+    confidence: "low",
+    matched_fix_id: null,
+    matched_fix: null,
+    headline: "We got it — we'll match this manually.",
+    reasoning:
+      "The automatic matcher is taking too long right now. Your PMO may still have been saved, and we'll review it manually instead of keeping you stuck here.",
+    next_steps: ["We'll review this as a build candidate.", "Watch your inbox for a follow-up."],
+    submission_id: "pending",
+  };
+}
+
+function runWithClientTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error("client-timeout")), ms);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
@@ -158,24 +188,33 @@ function Index() {
     }
     setSaving(true);
     try {
-      const result = await runMatch({
-        data: {
-          description: pmo.trim(),
-          email: email.trim(),
-          category,
-          platforms: platforms.length ? platforms : null,
-          platforms_other: platformsOther.trim() || null,
-          frequency,
-          cost_impact: cost,
-          dream_fix: dreamFix.trim() || null,
-          first_name: firstName.trim() || null,
-          work_type: workType,
-          user_id: user?.id ?? null,
-        },
-      });
+      const result = await runWithClientTimeout(
+        runMatch({
+          data: {
+            description: pmo.trim(),
+            email: email.trim(),
+            category,
+            platforms: platforms.length ? platforms : null,
+            platforms_other: platformsOther.trim() || null,
+            frequency,
+            cost_impact: cost,
+            dream_fix: dreamFix.trim() || null,
+            first_name: firstName.trim() || null,
+            work_type: workType,
+            user_id: user?.id ?? null,
+          },
+        }),
+        60_000,
+      );
       setMatch(result);
       setSubmitted(true);
     } catch (err) {
+      if (err instanceof Error && err.message === "client-timeout") {
+        setMatch(clientFallbackMatch());
+        setSubmitted(true);
+        toast.info("The matcher is taking too long, so we'll follow up manually.");
+        return;
+      }
       const msg = err instanceof Error ? err.message : "Something went wrong.";
       toast.error(msg);
     } finally {
