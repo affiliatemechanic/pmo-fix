@@ -38,7 +38,14 @@ const MatchSchema = z.object({
   next_steps: z.union([z.array(z.string()), z.string()]).nullish(),
 });
 
-export type MatchResult = z.infer<typeof MatchSchema> & {
+type RawMatchOutput = z.infer<typeof MatchSchema>;
+
+export type MatchResult = Omit<RawMatchOutput, "verdict" | "confidence" | "headline" | "reasoning" | "next_steps"> & {
+  verdict: "match" | "recommended" | "gap";
+  confidence: "low" | "medium" | "high";
+  headline: string;
+  reasoning: string;
+  next_steps: string[];
   matched_fix?: {
     id: string;
     name: string;
@@ -107,6 +114,12 @@ function extractJsonObject(raw: string) {
     ? cleaned.slice(firstBrace, lastBrace + 1)
     : cleaned;
   return JSON.parse(jsonStr);
+}
+
+function normalizeSteps(steps: RawMatchOutput["next_steps"]): string[] {
+  if (Array.isArray(steps)) return steps.filter(Boolean).map(String);
+  if (typeof steps === "string" && steps.trim()) return [steps.trim()];
+  return [];
 }
 
 export const submitAndMatch = createServerFn({ method: "POST" })
