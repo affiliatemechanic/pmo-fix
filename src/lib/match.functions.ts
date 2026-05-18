@@ -120,12 +120,37 @@ ${catalog.length === 0 ? "(empty — no fixes in catalog yet, so verdict MUST be
 
 Pick the best match or declare a gap.`;
 
-    const { experimental_output: output } = await generateText({
-      model,
-      system,
-      prompt: userPrompt,
-      experimental_output: Output.object({ schema: MatchSchema }),
-    });
+    const aiAbort = AbortSignal.timeout(45_000);
+    let output: z.infer<typeof MatchSchema>;
+    try {
+      const res = await generateText({
+        model,
+        system,
+        prompt: userPrompt,
+        experimental_output: Output.object({ schema: MatchSchema }),
+        abortSignal: aiAbort,
+      });
+      output = res.experimental_output;
+    } catch (err) {
+      console.error("AI match failed/timeout:", err);
+      // Persist a graceful fallback so the row isn't left dangling.
+      const fallback: MatchResult = {
+        verdict: "gap",
+        confidence: "low",
+        matched_fix_id: null,
+        matched_fix: null,
+        headline: "We couldn't auto-match this one — we'll follow up.",
+        reasoning:
+          "Our matching engine timed out on this submission. Your PMO has been saved and we'll review it manually.",
+        next_steps: ["We've logged this as a build candidate.", "Watch your inbox for a follow-up."],
+        submission_id: submission.id,
+      };
+      await supabaseAdmin
+        .from("pmo_submissions")
+        .update({ match_result: fallback, matched_at: new Date().toISOString() })
+        .eq("id", submission.id);
+      return fallback;
+    }
 
     // Validate matched_fix_id actually exists in catalog
     let matchedFixId = output.matched_fix_id;
@@ -151,11 +176,12 @@ Pick the best match or declare a gap.`;
       .update({ match_result: result, matched_at: new Date().toISOString() })
       .eq("id", submission.id);
 
-    // Send result email (fire-and-forget — never fail the submission on email errors)
+    // Send result email — fire-and-forget, with a hard timeout so it can NEVER
+    // block the response to the user. Failures are logged, not thrown.
     try {
       const origin = getRequestUrl().origin;
       const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-      await fetch(`${origin}/lovable/email/transactional/send`, {
+      void fetch(`${origin}/lovable/email/transactional/send`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -185,9 +211,10 @@ Pick the best match or declare a gap.`;
                 : submission.description,
           },
         }),
-      });
+        signal: AbortSignal.timeout(10_000),
+      }).catch((err) => console.error("Failed to send match result email", err));
     } catch (err) {
-      console.error("Failed to send match result email", err);
+      console.error("Failed to dispatch match result email", err);
     }
 
     return result;
