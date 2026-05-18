@@ -161,28 +161,17 @@ function Index() {
   const [match, setMatch] = useState<MatchResult | null>(null);
 
   const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (user?.email) setEmail(user.email);
   }, [user]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
+    supabase.auth.getSession().then(({ data }) => {
       setUser(data.session?.user ?? null);
-      if (data.session) {
-        const { data: roles } = await supabase
-          .from("user_roles").select("role").eq("user_id", data.session.user.id);
-        setIsAdmin(!!roles?.some((r) => r.role === "admin"));
-      }
     });
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
       setUser(session?.user ?? null);
-      if (session) {
-        const { data: roles } = await supabase
-          .from("user_roles").select("role").eq("user_id", session.user.id);
-        setIsAdmin(!!roles?.some((r) => r.role === "admin"));
-      } else setIsAdmin(false);
     });
     return () => sub.subscription.unsubscribe();
   }, []);

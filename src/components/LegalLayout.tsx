@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import logo from "@/assets/pmofix-logo.png";
+import { UserMenu } from "./UserMenu";
 
 export function LegalLayout({
   title,
