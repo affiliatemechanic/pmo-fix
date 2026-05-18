@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { FixCard } from "@/components/FixCard";
 
 export const Route = createFileRoute("/admin")({
   component: AdminPage,
