@@ -185,30 +185,26 @@ function Index() {
       work_type: workType,
       user_id: user?.id ?? null,
     };
-    setSaving(true);
-    try {
-      // Save immediately from the browser first. The server-side matcher may
-      // still run afterward, but the admin queue should not depend on it.
-      const { error: saveError } = await supabase.from("pmo_submissions").insert(submissionPayload);
-      if (saveError && saveError.code !== "23505") {
-        toast.error(`We couldn't save that yet: ${saveError.message}`);
-        return;
+
+    // Never put the user behind the network/AI path. Show the saved/manual
+    // review result immediately, then persist and match in the background.
+    setSaving(false);
+    setMatch(clientFallbackMatch(submissionId));
+    setSubmitted(true);
+
+    void (async () => {
+      try {
+        const { error: saveError } = await supabase.from("pmo_submissions").insert(submissionPayload);
+        if (saveError && saveError.code !== "23505") {
+          console.warn("Client-side submission save failed; server matcher will retry:", saveError);
+        }
+
+        const result = await runMatch({ data: submissionPayload });
+        setMatch(result);
+      } catch (err) {
+        console.warn("Submission background processing failed after fallback was shown:", err);
       }
-
-      setMatch(clientFallbackMatch(submissionId));
-      setSubmitted(true);
-
-      // Try to upgrade the manual fallback with a real AI match in the
-      // background, but never leave the user stuck on the spinner.
-      void runMatch({ data: submissionPayload })
-        .then((result) => setMatch(result))
-        .catch((err) => console.warn("Matcher failed after submission was saved:", err));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Something went wrong.";
-      toast.error(msg);
-    } finally {
-      setSaving(false);
-    }
+    })();
   };
 
   const canQ1 = pmo.trim().length >= 5;
