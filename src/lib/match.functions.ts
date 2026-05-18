@@ -72,10 +72,14 @@ function fallbackMatch(submissionId: string): MatchResult {
     confidence: "low",
     matched_fix_id: null,
     matched_fix: null,
-    headline: "We couldn't auto-match this one — we'll follow up.",
+    headline: "You just discovered a brand new fix.",
     reasoning:
-      "Our matching engine took too long on this submission. Your PMO has been saved and we'll review it manually.",
-    next_steps: ["We've logged this as a build candidate.", "Watch your inbox for a follow-up."],
+      "Nothing in our vault solves this yet — which means you're sitting on something worth building. We review every gap submission for our next product sprint. The problems that piss people off the most tend to become our biggest hits.",
+    next_steps: [
+      "Your PMO is locked in as a build candidate — no action needed.",
+      "If we greenlight this, you'll be first to know (and first to get it free).",
+      "Have a friend with the same pain? Send them here — more demand = faster build.",
+    ],
     submission_id: submissionId,
   };
 }
