@@ -213,8 +213,8 @@ function Index() {
       setSubmitted(true);
     } catch (err) {
       if (err instanceof Error && err.message === "client-timeout") {
-        const { error } = await supabase.from("pmo_submissions").upsert(submissionPayload, { onConflict: "id" });
-        if (error) {
+        const { error } = await supabase.from("pmo_submissions").insert(submissionPayload);
+        if (error && error.code !== "23505") {
           toast.error(`We couldn't save that yet: ${error.message}`);
           return;
         }
