@@ -21,22 +21,6 @@ function clientFallbackMatch(submissionId: string): MatchResult {
   };
 }
 
-function runWithClientTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = window.setTimeout(() => reject(new Error("client-timeout")), ms);
-    promise.then(
-      (value) => {
-        window.clearTimeout(timer);
-        resolve(value);
-      },
-      (error) => {
-        window.clearTimeout(timer);
-        reject(error);
-      },
-    );
-  });
-}
-
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
@@ -211,25 +195,17 @@ function Index() {
         return;
       }
 
-      const result = await runWithClientTimeout(
-        runMatch({
-          data: submissionPayload,
-        }),
-        20_000,
-      );
-      setMatch(result);
-      setSubmitted(true);
-    } catch (err) {
-      if (err instanceof Error && err.message === "client-timeout") {
-        setMatch(clientFallbackMatch(submissionId));
-        setSubmitted(true);
-        toast.info("The matcher is taking too long, so we'll follow up manually.");
-        return;
-      }
-      console.warn("Matcher failed after submission was saved:", err);
       setMatch(clientFallbackMatch(submissionId));
       setSubmitted(true);
-      toast.info("We saved it. The matcher is having a moment, so we'll follow up manually.");
+
+      // Try to upgrade the manual fallback with a real AI match in the
+      // background, but never leave the user stuck on the spinner.
+      void runMatch({ data: submissionPayload })
+        .then((result) => setMatch(result))
+        .catch((err) => console.warn("Matcher failed after submission was saved:", err));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Something went wrong.";
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
