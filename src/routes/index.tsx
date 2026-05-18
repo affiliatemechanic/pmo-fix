@@ -1,13 +1,25 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import logo from "@/assets/pmofix-logo.png";
 import { supabase } from "@/integrations/supabase/client";
-import { submitAndMatch, type MatchResult } from "@/lib/match.functions";
+import type { MatchResult } from "@/lib/match.functions";
 import { getKnownExternalRecommendation } from "@/lib/match-rules";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 import { FixCard } from "@/components/FixCard";
+
+async function submitMatchViaApi(payload: Record<string, unknown>): Promise<MatchResult> {
+  const response = await fetch("/api/public/match", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(body?.error || `Match request failed with ${response.status}`);
+  }
+  return body as MatchResult;
+}
 
 function clientFallbackMatch(submissionId: string, parts: Array<string | null | undefined> = []): MatchResult {
   const knownExternal = getKnownExternalRecommendation(parts);
@@ -146,7 +158,6 @@ function Index() {
   const [saving, setSaving] = useState(false);
   const [loadingLine, setLoadingLine] = useState(0);
   const [match, setMatch] = useState<MatchResult | null>(null);
-  const runMatch = useServerFn(submitAndMatch);
 
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -214,23 +225,9 @@ function Index() {
     setMatch(null);
     setSaving(true);
 
-    // Defensive: if the Supabase session is stuck refreshing (seen in Chrome
-    // with a stale token), the global auth-attacher middleware will hang
-    // forever on getSession() and the serverFn POST never fires. Race it
-    // with a short timeout and clear the local session if it stalls.
-    try {
-      await Promise.race([
-        supabase.auth.getSession(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("session-timeout")), 2500)),
-      ]);
-    } catch {
-      console.warn("Supabase getSession hung — clearing local session.");
-      try { await supabase.auth.signOut({ scope: "local" } as any); } catch {}
-    }
-
     try {
       const result = await Promise.race([
-        runMatch({ data: submissionPayload }),
+        submitMatchViaApi(submissionPayload),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("match-timeout")), 25000),
         ),

@@ -75,7 +75,7 @@ function renderMatchEmailText(data: {
   ].join("\n");
 }
 
-const SubmissionInputSchema = z.object({
+export const SubmissionInputSchema = z.object({
   id: z.string().uuid().optional(),
   description: z.string().min(5).max(5000),
   email: z.string().email().max(255),
@@ -441,7 +441,7 @@ export const submitAndMatch = createServerFn({ method: "POST" })
     }
   });
 
-async function runSubmitAndMatch(
+export async function runSubmitAndMatch(
   data: z.infer<typeof SubmissionInputSchema>,
 ): Promise<MatchResult> {
   // 1. Insert submission FIRST so the row is always saved, even if matching
