@@ -79,6 +79,8 @@ function AdminPage() {
   const [fixes, setFixes] = useState<Fix[]>([]);
   const [tab, setTab] = useState<"users" | "submissions" | "fixes">("fixes");
 
+  const [emailLogs, setEmailLogs] = useState<EmailLogRow[]>([]);
+
   const loadFixes = async () => {
     const { data, error } = await supabase
       .from("fixes")
