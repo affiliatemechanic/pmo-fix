@@ -441,7 +441,7 @@ export const submitAndMatch = createServerFn({ method: "POST" })
     }
   });
 
-async function runSubmitAndMatch(
+export async function runSubmitAndMatch(
   data: z.infer<typeof SubmissionInputSchema>,
 ): Promise<MatchResult> {
   // 1. Insert submission FIRST so the row is always saved, even if matching

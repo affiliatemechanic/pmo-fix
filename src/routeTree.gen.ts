@@ -22,6 +22,7 @@ import { Route as FixesIdRouteImport } from './routes/fixes.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AdminAweberRouteImport } from './routes/admin_.aweber'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
+import { Route as ApiPublicMatchRouteImport } from './routes/api/public/match'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
@@ -95,6 +96,11 @@ const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   path: '/lovable/email/suppression',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicMatchRoute = ApiPublicMatchRouteImport.update({
+  id: '/api/public/match',
+  path: '/api/public/match',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LovableEmailTransactionalSendRoute =
   LovableEmailTransactionalSendRouteImport.update({
     id: '/lovable/email/transactional/send',
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/admin/aweber': typeof AdminAweberRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/fixes/$id': typeof FixesIdRoute
+  '/api/public/match': typeof ApiPublicMatchRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/aweber/oauth': typeof ApiPublicAweberOauthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByTo {
   '/admin/aweber': typeof AdminAweberRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/fixes/$id': typeof FixesIdRoute
+  '/api/public/match': typeof ApiPublicMatchRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/aweber/oauth': typeof ApiPublicAweberOauthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -193,6 +201,7 @@ export interface FileRoutesById {
   '/admin_/aweber': typeof AdminAweberRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/fixes/$id': typeof FixesIdRoute
+  '/api/public/match': typeof ApiPublicMatchRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/aweber/oauth': typeof ApiPublicAweberOauthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -217,6 +226,7 @@ export interface FileRouteTypes {
     | '/admin/aweber'
     | '/email/unsubscribe'
     | '/fixes/$id'
+    | '/api/public/match'
     | '/lovable/email/suppression'
     | '/api/public/aweber/oauth'
     | '/api/public/payments/webhook'
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
     | '/admin/aweber'
     | '/email/unsubscribe'
     | '/fixes/$id'
+    | '/api/public/match'
     | '/lovable/email/suppression'
     | '/api/public/aweber/oauth'
     | '/api/public/payments/webhook'
@@ -261,6 +272,7 @@ export interface FileRouteTypes {
     | '/admin_/aweber'
     | '/email/unsubscribe'
     | '/fixes/$id'
+    | '/api/public/match'
     | '/lovable/email/suppression'
     | '/api/public/aweber/oauth'
     | '/api/public/payments/webhook'
@@ -284,6 +296,7 @@ export interface RootRouteChildren {
   AdminAweberRoute: typeof AdminAweberRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   FixesIdRoute: typeof FixesIdRoute
+  ApiPublicMatchRoute: typeof ApiPublicMatchRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicAweberOauthRoute: typeof ApiPublicAweberOauthRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -387,6 +400,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailSuppressionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/match': {
+      id: '/api/public/match'
+      path: '/api/public/match'
+      fullPath: '/api/public/match'
+      preLoaderRoute: typeof ApiPublicMatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lovable/email/transactional/send': {
       id: '/lovable/email/transactional/send'
       path: '/lovable/email/transactional/send'
@@ -452,6 +472,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminAweberRoute: AdminAweberRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   FixesIdRoute: FixesIdRoute,
+  ApiPublicMatchRoute: ApiPublicMatchRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicAweberOauthRoute: ApiPublicAweberOauthRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
@@ -464,3 +485,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
