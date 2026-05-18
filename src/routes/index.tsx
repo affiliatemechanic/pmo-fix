@@ -15,12 +15,13 @@ function clientFallbackMatch(submissionId: string): MatchResult {
     matched_fix_id: null,
     matched_fix: null,
     external_recommendation: null,
-    headline: "No clean instant match — this looks like a build candidate.",
+    headline: "You just discovered a brand new fix.",
     reasoning:
-      "The instant matcher did not return a confident fix fast enough, so we're calling it honestly instead of making you stare at a spinner. Your PMO is captured and will be reviewed against the catalog.",
+      "Nothing in our vault solves this yet — which means you're sitting on something worth building. We review every gap submission for our next product sprint. The problems that piss people off the most tend to become our biggest hits.",
     next_steps: [
-      "We're logging this as a possible PMOfix build.",
-      "If we find a better existing fix, we'll send it as a follow-up.",
+      "Your PMO is locked in as a build candidate — no action needed.",
+      "If we greenlight this, you'll be first to know (and first to get it free).",
+      "Have a friend with the same pain? Send them here — more demand = faster build.",
     ],
     submission_id: submissionId,
   };
