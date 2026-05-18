@@ -182,10 +182,7 @@ function Index() {
     return () => clearInterval(id);
   }, [saving]);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast.success("Signed out.");
-  };
+
 
   const togglePlatform = (p: string) =>
     setPlatforms((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
