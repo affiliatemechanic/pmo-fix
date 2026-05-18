@@ -7,6 +7,7 @@ import { getKnownExternalRecommendation } from "@/lib/match-rules";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 import { FixCard } from "@/components/FixCard";
+import { UserMenu } from "@/components/UserMenu";
 
 async function submitMatchViaApi(payload: Record<string, unknown>): Promise<MatchResult> {
   const response = await fetch("/api/public/match", {
