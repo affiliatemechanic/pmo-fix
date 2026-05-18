@@ -716,8 +716,10 @@ function LoadingState({ line }: { line: string }) {
 function PostSubmit({
   firstName, match, onReset,
 }: { firstName: string; match: MatchResult | null; onReset: () => void }) {
+  const hasMatchResult = !!match;
   const verdict = match?.verdict ?? "gap";
   const label =
+    !hasMatchResult ? "PMO received" :
     verdict === "match" ? "Match found" :
     verdict === "recommended" ? "Recommended fix" :
     "Gap identified";
@@ -730,8 +732,14 @@ function PostSubmit({
     <div className="py-4">
       <div className={`mb-3 text-xs uppercase tracking-[0.25em] ${tone}`}>{label}</div>
       <h2 className="font-display text-3xl font-black italic text-cream md:text-4xl">
-        {match?.headline ?? (firstName ? `Thanks, ${firstName}.` : "Thanks.")}
+        {match?.headline ?? (firstName ? `Thanks, ${firstName}. We're on it.` : "Thanks. We're on it.")}
       </h2>
+
+      {!hasMatchResult && (
+        <p className="mt-5 text-muted-foreground leading-relaxed">
+          Your PMO has been saved. We're checking it against the fix catalog now and will send the best next step to your inbox.
+        </p>
+      )}
 
       {match?.reasoning && (
         <p className="mt-5 text-muted-foreground leading-relaxed">
@@ -788,7 +796,17 @@ function PostSubmit({
         </div>
       )}
 
-      {verdict === "gap" && (
+      {!hasMatchResult && (
+        <div className="mt-6 rounded-lg border border-gold/30 bg-gold/5 p-4 text-sm text-muted-foreground">
+          <div className="mb-3 flex items-center gap-3 text-cream">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-gold" />
+            Matching is running in the background.
+          </div>
+          You can close this page — the submission is already in the queue.
+        </div>
+      )}
+
+      {hasMatchResult && verdict === "gap" && (
         <p className="mt-6 rounded-lg border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
           No fix exists yet — which means you just found one. We'll review this as a build candidate
           and reach out{firstName ? `, ${firstName}` : ""}.
