@@ -7,18 +7,16 @@ import { submitAndMatch, type MatchResult } from "@/lib/match.functions";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 
-function clientFallbackMatch(submissionId: string): MatchResult {
-  return {
-    verdict: "gap",
-    confidence: "low",
-    matched_fix_id: null,
-    matched_fix: null,
-    headline: "We got it — we'll match this manually.",
-    reasoning:
-      "The automatic matcher is taking too long right now. Your PMO has been saved, and we'll review it manually instead of keeping you stuck here.",
-    next_steps: ["We'll review this as a build candidate.", "Watch your inbox for a follow-up."],
-    submission_id: submissionId,
-  };
+function isSystemFallbackMatch(match: MatchResult): boolean {
+  return (
+    match.verdict === "gap" &&
+    match.confidence === "low" &&
+    !match.matched_fix_id &&
+    (match.headline.includes("match this manually") ||
+      match.headline.includes("couldn't auto-match") ||
+      match.reasoning.includes("matching engine took too long") ||
+      match.reasoning.includes("automatic matcher is taking too long"))
+  );
 }
 
 export const Route = createFileRoute("/")({
@@ -186,10 +184,10 @@ function Index() {
       user_id: user?.id ?? null,
     };
 
-    // Never put the user behind the network/AI path. Show the saved/manual
-    // review result immediately, then persist and match in the background.
+    // Never put the user behind the network/AI path. Confirm the submission
+    // immediately, then persist and match in the background.
     setSaving(false);
-    setMatch(clientFallbackMatch(submissionId));
+    setMatch(null);
     setSubmitted(true);
 
     void (async () => {
@@ -200,7 +198,9 @@ function Index() {
         }
 
         const result = await runMatch({ data: submissionPayload });
-        setMatch(result);
+        if (!isSystemFallbackMatch(result)) {
+          setMatch(result);
+        }
       } catch (err) {
         console.warn("Submission background processing failed after fallback was shown:", err);
       }
@@ -716,8 +716,10 @@ function LoadingState({ line }: { line: string }) {
 function PostSubmit({
   firstName, match, onReset,
 }: { firstName: string; match: MatchResult | null; onReset: () => void }) {
+  const hasMatchResult = !!match;
   const verdict = match?.verdict ?? "gap";
   const label =
+    !hasMatchResult ? "PMO received" :
     verdict === "match" ? "Match found" :
     verdict === "recommended" ? "Recommended fix" :
     "Gap identified";
@@ -730,8 +732,14 @@ function PostSubmit({
     <div className="py-4">
       <div className={`mb-3 text-xs uppercase tracking-[0.25em] ${tone}`}>{label}</div>
       <h2 className="font-display text-3xl font-black italic text-cream md:text-4xl">
-        {match?.headline ?? (firstName ? `Thanks, ${firstName}.` : "Thanks.")}
+        {match?.headline ?? (firstName ? `Thanks, ${firstName}. We're on it.` : "Thanks. We're on it.")}
       </h2>
+
+      {!hasMatchResult && (
+        <p className="mt-5 text-muted-foreground leading-relaxed">
+          Your PMO has been saved. We're checking it against the fix catalog now and will send the best next step to your inbox.
+        </p>
+      )}
 
       {match?.reasoning && (
         <p className="mt-5 text-muted-foreground leading-relaxed">
@@ -788,7 +796,17 @@ function PostSubmit({
         </div>
       )}
 
-      {verdict === "gap" && (
+      {!hasMatchResult && (
+        <div className="mt-6 rounded-lg border border-gold/30 bg-gold/5 p-4 text-sm text-muted-foreground">
+          <div className="mb-3 flex items-center gap-3 text-cream">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-gold" />
+            Matching is running in the background.
+          </div>
+          You can close this page — the submission is already in the queue.
+        </div>
+      )}
+
+      {hasMatchResult && verdict === "gap" && (
         <p className="mt-6 rounded-lg border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
           No fix exists yet — which means you just found one. We'll review this as a build candidate
           and reach out{firstName ? `, ${firstName}` : ""}.
