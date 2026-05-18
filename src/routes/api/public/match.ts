@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { runSubmitAndMatch } from "@/lib/match.functions";
+import { runSubmitAndMatch, SubmissionInputSchema } from "@/lib/match.functions";
 
 export const Route = createFileRoute("/api/public/match")({
   server: {
@@ -11,8 +11,8 @@ export const Route = createFileRoute("/api/public/match")({
             return Response.json({ error: "Expected JSON" }, { status: 415 });
           }
 
-          const payload = await request.json();
-          const result = await runSubmitAndMatch(payload);
+          const payload = SubmissionInputSchema.parse(await request.json());
+          const result = await runSubmitAndMatch({ ...payload, user_id: null });
           return Response.json(result);
         } catch (error) {
           console.error("public match submission failed:", error);

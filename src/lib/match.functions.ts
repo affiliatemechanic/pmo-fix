@@ -75,7 +75,7 @@ function renderMatchEmailText(data: {
   ].join("\n");
 }
 
-const SubmissionInputSchema = z.object({
+export const SubmissionInputSchema = z.object({
   id: z.string().uuid().optional(),
   description: z.string().min(5).max(5000),
   email: z.string().email().max(255),
