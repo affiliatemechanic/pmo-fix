@@ -8,16 +8,29 @@ import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 import { FixCard } from "@/components/FixCard";
 
-function isSystemFallbackMatch(match: MatchResult): boolean {
-  return (
-    match.verdict === "gap" &&
-    match.confidence === "low" &&
-    !match.matched_fix_id &&
-    (match.headline.includes("match this manually") ||
-      match.headline.includes("couldn't auto-match") ||
-      match.reasoning.includes("matching engine took too long") ||
-      match.reasoning.includes("automatic matcher is taking too long"))
-  );
+function clientFallbackMatch(submissionId: string): MatchResult {
+  return {
+    verdict: "gap",
+    confidence: "low",
+    matched_fix_id: null,
+    matched_fix: null,
+    external_recommendation: null,
+    headline: "No clean instant match — this looks like a build candidate.",
+    reasoning:
+      "The instant matcher did not return a confident fix fast enough, so we're calling it honestly instead of making you stare at a spinner. Your PMO is captured and will be reviewed against the catalog.",
+    next_steps: [
+      "We're logging this as a possible PMOfix build.",
+      "If we find a better existing fix, we'll send it as a follow-up.",
+    ],
+    submission_id: submissionId,
+  };
+}
+
+function withClientTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
 }
 
 export const Route = createFileRoute("/")({
@@ -188,22 +201,22 @@ function Index() {
     setMatch(null);
     setSaving(true);
     try {
-      const { error: saveError } = await supabase.from("pmo_submissions").insert(submissionPayload);
-      if (saveError && saveError.code !== "23505") {
-        console.warn("Client-side submission save failed; server matcher will retry:", saveError);
-      }
+      void withClientTimeout(supabase.from("pmo_submissions").insert(submissionPayload), 3_000).then((res) => {
+        if (res?.error && res.error.code !== "23505") {
+          console.warn("Client-side submission save failed; server matcher will retry:", res.error);
+        }
+      });
 
       // Hard client-side cap so the spinner can never hang on a stuck worker.
       const result = await Promise.race<MatchResult | null>([
         runMatch({ data: submissionPayload }),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 55_000)),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 15_000)),
       ]);
-      if (result && !isSystemFallbackMatch(result)) {
-        setMatch(result);
-      }
+      setMatch(result ?? clientFallbackMatch(submissionId));
     } catch (err) {
       console.warn("Match failed; showing fallback view:", err);
-      toast.error("Matcher hiccuped — your PMO is saved, we'll follow up by email.");
+      setMatch(clientFallbackMatch(submissionId));
+      toast.error("Matcher hiccuped — showing the honest result now.");
     } finally {
       setSaving(false);
       setSubmitted(true);
