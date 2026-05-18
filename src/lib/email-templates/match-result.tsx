@@ -12,7 +12,6 @@ import {
   Text,
 } from '@react-email/components'
 import type { TemplateEntry } from './registry'
-import { sanitizeHtml } from '../sanitize-html'
 
 const SITE_NAME = 'PMOfix'
 const SITE_URL = 'https://pmofix.com'
@@ -77,7 +76,7 @@ export const MatchResultEmail = ({
           <Section style={fixCard}>
             <Text style={fixLabel}>The fix</Text>
             <Heading style={h2}>{matchedFix.name}</Heading>
-            <Text style={text} dangerouslySetInnerHTML={{ __html: sanitizeHtml(matchedFix.summary) }} />
+            <Text style={text}>{matchedFix.summary}</Text>
             {matchedFix.price_note ? (
               <Text style={priceNote}>{matchedFix.price_note}</Text>
             ) : null}
