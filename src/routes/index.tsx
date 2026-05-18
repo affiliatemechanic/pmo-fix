@@ -804,9 +804,8 @@ function PostSubmit({
 
 
       {hasMatchResult && verdict === "gap" && (
-        <p className="mt-6 rounded-lg border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
-          No fix exists yet — which means you just found one. We'll review this as a build candidate
-          and reach out{firstName ? `, ${firstName}` : ""}.
+        <p className="mt-6 rounded-lg border border-gold/30 bg-gold/5 p-4 text-sm text-gold">
+          No fix exists yet — which means you just found one. This goes straight to our build board. The best gaps become real products, and the people who found them get first access free.{firstName ? ` Keep an eye out, ${firstName}.` : " Keep an eye out."}
         </p>
       )}
 
