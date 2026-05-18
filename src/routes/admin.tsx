@@ -230,6 +230,7 @@ type FixDraft = {
   summary: string;
   description: string;
   url: string;
+  image_url: string;
   categories: string;
   platforms: string;
   tags: string;
@@ -243,6 +244,7 @@ const emptyDraft: FixDraft = {
   summary: "",
   description: "",
   url: "",
+  image_url: "",
   categories: "",
   platforms: "",
   tags: "",
@@ -258,6 +260,7 @@ function toDraft(f: Fix): FixDraft {
     summary: f.summary,
     description: f.description ?? "",
     url: f.url ?? "",
+    image_url: f.image_url ?? "",
     categories: (f.categories ?? []).join(", "),
     platforms: (f.platforms ?? []).join(", "),
     tags: (f.tags ?? []).join(", "),
