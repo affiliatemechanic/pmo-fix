@@ -467,6 +467,21 @@ function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<voi
                   onChange={(e) => setEditing({ ...editing, url: e.target.value })}
                 />
               </Field>
+              <Field label="Image URL (logo or product image)">
+                <input
+                  className="input"
+                  value={editing.image_url}
+                  onChange={(e) => setEditing({ ...editing, image_url: e.target.value })}
+                  placeholder="https://…/logo.png"
+                />
+                {editing.image_url && (
+                  <img
+                    src={editing.image_url}
+                    alt="preview"
+                    className="mt-2 h-16 w-16 rounded-lg border border-border bg-secondary/30 object-contain p-1"
+                  />
+                )}
+              </Field>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Categories (comma separated)">
                   <input
