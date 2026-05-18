@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestUrl } from "@tanstack/react-start/server";
-import { generateText } from "ai";
+import { generateObject } from "ai";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { createLovableAiGatewayProvider } from "./ai-gateway";
@@ -183,7 +183,7 @@ async function runSubmitAndMatch(
 
     // 3. Ask the AI to match
     const gateway = createLovableAiGatewayProvider(apiKey);
-    const model = gateway("google/gemini-2.5-flash");
+    const model = gateway("google/gemini-3-flash-preview");
 
     const system = `You are the PMOfix matching engine. PMO = "Pisses Me Off" — a user-reported workflow problem.
 Your job: get the user a real solution as fast as possible. In priority order:
@@ -218,28 +218,24 @@ Pick the best match or declare a gap.`;
     const aiAbort = AbortSignal.timeout(45_000);
     let output: z.infer<typeof MatchSchema>;
     try {
-      const res = await generateText({
+      const res = await generateObject({
         model,
-        system: system + "\n\nRespond with ONLY a JSON object matching this exact shape, no prose, no markdown fences:\n" + JSON.stringify({
-          verdict: "match|recommended|gap",
-          confidence: "low|medium|high",
-          matched_fix_id: "uuid or null",
-          external_recommendation: { name: "string", url: "string or null", why: "string" },
-          headline: "string",
-          reasoning: "string",
-          next_steps: ["string"],
-        }),
+        schema: MatchSchema,
+        system,
         prompt: userPrompt,
         abortSignal: aiAbort,
       });
-      // Strip code fences if any, then parse.
-      const raw = res.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-      const parsed = JSON.parse(raw);
-      output = MatchSchema.parse(parsed);
+      output = res.object;
     } catch (err) {
-      console.error("AI match failed/timeout:", errorMessage(err), err);
-      // Persist a graceful fallback so the row isn't left dangling.
-      const fallback = fallbackMatch(submission.id);
+      const msg = errorMessage(err);
+      console.error("AI match failed/timeout:", msg, err);
+      // Persist a graceful fallback so the row isn't left dangling. Stash the
+      // real error message in reasoning so we can see it without log hunting.
+      const fallback: MatchResult = {
+        ...fallbackMatch(submission.id),
+        reasoning:
+          fallbackMatch(submission.id).reasoning + ` (debug: ${msg.slice(0, 300)})`,
+      };
       await supabaseAdmin
         .from("pmo_submissions")
         .update({ match_result: fallback, matched_at: new Date().toISOString() })
