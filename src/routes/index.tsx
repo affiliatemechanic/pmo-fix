@@ -505,13 +505,13 @@ function Index() {
                       >
                         ← Back
                       </button>
-                      <button
+      <button
                         type="button"
                         onClick={submit}
-                        disabled={!canSubmit}
+        disabled={!canSubmit || saving}
                         className="inline-flex items-center justify-center rounded-lg bg-gold px-6 py-4 text-base font-bold uppercase tracking-wide text-gold-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        Find My Fix →
+        {saving ? "Finding..." : "Find My Fix →"}
                       </button>
                     </div>
                     <p className="text-xs text-muted-foreground italic">
