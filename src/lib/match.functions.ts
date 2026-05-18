@@ -1,10 +1,7 @@
-import * as React from "react";
-import { render } from "@react-email/components";
 import { createServerFn } from "@tanstack/react-start";
 import { generateObject, generateText } from "ai";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { template as matchResultEmailTemplate } from "@/lib/email-templates/match-result";
 import { createLovableAiGatewayProvider } from "./ai-gateway";
 import { getKnownExternalRecommendation } from "./match-rules";
 
@@ -18,6 +15,64 @@ function generateEmailToken(): string {
   return Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderMatchEmailHtml(data: {
+  firstName?: string;
+  headline: string;
+  reasoning: string;
+  problemPreview: string;
+  matchedFix: { name: string; summary: string; url?: string; price_note?: string } | null;
+  nextSteps: string[];
+}): string {
+  const greeting = data.firstName ? `${escapeHtml(data.firstName)}, ` : "";
+  const fixBlock = data.matchedFix
+    ? `<div style="border:1px solid #e8e4dd;border-radius:12px;padding:20px 22px;margin:8px 0 24px;background:#fff;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#b8860b;margin:0 0 6px;font-weight:bold;">The fix</div>
+        <h2 style="font-size:20px;font-weight:bold;color:#0d0d0d;margin:8px 0 12px;">${escapeHtml(data.matchedFix.name)}</h2>
+        <p style="font-size:15px;color:#3a3a3a;line-height:1.6;margin:0 0 16px;">${escapeHtml(data.matchedFix.summary)}</p>
+        ${data.matchedFix.price_note ? `<p style="font-size:13px;color:#7a7a7a;margin:0 0 16px;">${escapeHtml(data.matchedFix.price_note)}</p>` : ""}
+        ${data.matchedFix.url ? `<a href="${escapeHtml(data.matchedFix.url)}" style="background:#0d0d0d;color:#fff;font-size:14px;font-weight:bold;border-radius:8px;padding:12px 22px;text-decoration:none;display:inline-block;">Get this fix</a>` : ""}
+      </div>`
+    : `<div style="border:1px dashed #d6d2c8;border-radius:12px;padding:20px 22px;margin:8px 0 24px;background:#fafaf7;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#b8860b;margin:0 0 6px;font-weight:bold;">What this means</div>
+        <p style="font-size:15px;color:#3a3a3a;line-height:1.6;margin:0;">Nothing in our current fix library nails this one. We've flagged it as a build candidate — the more people who vent about the same thing, the faster we build it.</p>
+      </div>`;
+  const steps = data.nextSteps.length
+    ? `<h3 style="font-size:14px;font-weight:bold;color:#0d0d0d;margin:28px 0 12px;text-transform:uppercase;letter-spacing:.08em;">Next steps</h3><ul style="padding-left:20px;margin:0 0 16px;">${data.nextSteps
+        .map((step) => `<li style="font-size:15px;color:#3a3a3a;line-height:1.6;margin:0 0 8px;">${escapeHtml(step)}</li>`)
+        .join("")}</ul>`
+    : "";
+
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(data.headline)}</title></head><body style="background:#fff;font-family:Arial,sans-serif;margin:0;"><div style="padding:24px 28px;max-width:600px;"><div style="font-size:24px;font-weight:bold;color:#b8860b;margin:0 0 24px;">PMO<span style="color:#0d0d0d;">fix</span></div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.18em;color:#b8860b;margin:0 0 8px;font-weight:bold;">Your PMO verdict</div><h1 style="font-size:26px;font-weight:bold;color:#0d0d0d;margin:0 0 24px;line-height:1.25;">${greeting}${escapeHtml(data.headline)}</h1><div style="border-left:3px solid #b8860b;padding:12px 16px;margin:0 0 24px;background:#faf7f0;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#8a7a4a;margin:0 0 6px;">You said:</div><p style="font-size:14px;color:#3a3a3a;line-height:1.5;margin:0;font-style:italic;">&quot;${escapeHtml(data.problemPreview)}&quot;</p></div><p style="font-size:15px;color:#3a3a3a;line-height:1.6;margin:0 0 16px;">${escapeHtml(data.reasoning)}</p>${fixBlock}${steps}<hr style="border:none;border-top:1px solid #e8e4dd;margin:32px 0 16px;"><p style="font-size:12px;color:#999;margin:0;">Sent by PMOfix · <a href="https://pmofix.com" style="color:#b8860b;text-decoration:none;">pmofix.com</a></p></div></body></html>`;
+}
+
+function renderMatchEmailText(data: {
+  headline: string;
+  reasoning: string;
+  problemPreview: string;
+  matchedFix: { name: string; summary: string; url?: string; price_note?: string } | null;
+  nextSteps: string[];
+}): string {
+  return [
+    data.headline,
+    "",
+    `You said: ${data.problemPreview}`,
+    "",
+    data.reasoning,
+    "",
+    data.matchedFix ? `The fix: ${data.matchedFix.name}\n${data.matchedFix.summary}${data.matchedFix.url ? `\n${data.matchedFix.url}` : ""}` : "No exact fix exists yet. We flagged this as a build candidate.",
+    data.nextSteps.length ? `\nNext steps:\n${data.nextSteps.map((s) => `- ${s}`).join("\n")}` : "",
+  ].join("\n");
 }
 
 const SubmissionInputSchema = z.object({
@@ -315,13 +370,9 @@ async function queueMatchResultEmail(submission: EmailSubmission, result: MatchR
           : null,
       problemPreview: submission.description.length > 240 ? submission.description.slice(0, 237) + "..." : submission.description,
     };
-    const element = React.createElement(matchResultEmailTemplate.component, templateData);
-    const html = await render(element);
-    const text = await render(element, { plainText: true });
-    const subject =
-      typeof matchResultEmailTemplate.subject === "function"
-        ? matchResultEmailTemplate.subject(templateData)
-        : matchResultEmailTemplate.subject;
+    const html = renderMatchEmailHtml(templateData);
+    const text = renderMatchEmailText(templateData);
+    const subject = `PMOfix: ${result.headline}`;
 
     await supabaseAdmin.from("email_send_log").insert({
       message_id: messageId,
