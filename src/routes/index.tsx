@@ -782,6 +782,24 @@ function PostSubmit({
         </div>
       )}
 
+      {!match?.matched_fix && match?.external_recommendation?.name && (
+        <div className="mt-6 rounded-xl border border-gold/30 bg-background/40 p-6">
+          <div className="text-xs uppercase tracking-[0.2em] text-gold">External tool we'd try</div>
+          <h3 className="mt-2 text-2xl font-bold text-cream">{match.external_recommendation.name}</h3>
+          <p className="mt-2 text-muted-foreground">{match.external_recommendation.why}</p>
+          {match.external_recommendation.url && (
+            <a
+              href={match.external_recommendation.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center justify-center rounded-lg border border-gold/50 px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-gold transition hover:bg-gold/10"
+            >
+              Check it out →
+            </a>
+          )}
+        </div>
+      )}
+
       {match?.next_steps && match.next_steps.length > 0 && (
         <div className="mt-6">
           <div className="text-xs uppercase tracking-[0.2em] text-gold">Next steps</div>
