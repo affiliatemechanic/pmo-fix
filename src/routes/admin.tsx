@@ -446,14 +446,14 @@ function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<voi
                   ))}
                 </div>
               </Field>
-              <Field label="Summary">
+              <Field label="Summary (basic HTML: <br>, <b>, <i>, <a>, <ul>, <li>)">
                 <textarea
                   className="input min-h-[60px]"
                   value={editing.summary}
                   onChange={(e) => setEditing({ ...editing, summary: e.target.value })}
                 />
               </Field>
-              <Field label="Description (optional)">
+              <Field label="Description (optional, same HTML tags allowed)">
                 <textarea
                   className="input min-h-[100px]"
                   value={editing.description}
