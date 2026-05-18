@@ -4,11 +4,30 @@ import { useServerFn } from "@tanstack/react-start";
 import logo from "@/assets/pmofix-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { submitAndMatch, type MatchResult } from "@/lib/match.functions";
+import { getKnownExternalRecommendation } from "@/lib/match-rules";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 import { FixCard } from "@/components/FixCard";
 
-function clientFallbackMatch(submissionId: string): MatchResult {
+function clientFallbackMatch(submissionId: string, parts: Array<string | null | undefined> = []): MatchResult {
+  const knownExternal = getKnownExternalRecommendation(parts);
+  if (knownExternal) {
+    return {
+      verdict: "recommended",
+      confidence: "medium",
+      matched_fix_id: null,
+      matched_fix: null,
+      external_recommendation: knownExternal,
+      headline: `${knownExternal.name} is the fix I’d try first.`,
+      reasoning: `This PMO sounds like a workflow/tooling problem more than a brand-new product gap. ${knownExternal.why}`,
+      next_steps: [
+        `Try ${knownExternal.name} against the exact workflow that keeps breaking.`,
+        "If it still misses, reply to the result email and we'll treat it as a build candidate.",
+      ],
+      submission_id: submissionId,
+    };
+  }
+
   return {
     verdict: "gap",
     confidence: "low",
@@ -211,12 +230,12 @@ function Index() {
       // Hard client-side cap so the spinner can never hang on a stuck worker.
       const result = await Promise.race<MatchResult | null>([
         runMatch({ data: submissionPayload }),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 15_000)),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 45_000)),
       ]);
-      setMatch(result ?? clientFallbackMatch(submissionId));
+      setMatch(result ?? clientFallbackMatch(submissionId, [pmo, category, platforms.join(" "), platformsOther, dreamFix]));
     } catch (err) {
       console.warn("Match failed; showing fallback view:", err);
-      setMatch(clientFallbackMatch(submissionId));
+      setMatch(clientFallbackMatch(submissionId, [pmo, category, platforms.join(" "), platformsOther, dreamFix]));
       toast.error("Matcher hiccuped — showing the honest result now.");
     } finally {
       setSaving(false);

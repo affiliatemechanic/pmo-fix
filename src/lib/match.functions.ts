@@ -4,6 +4,7 @@ import { generateObject, generateText } from "ai";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { createLovableAiGatewayProvider } from "./ai-gateway";
+import { getKnownExternalRecommendation } from "./match-rules";
 
 const SubmissionInputSchema = z.object({
   id: z.string().uuid().optional(),
@@ -145,32 +146,7 @@ function deterministicBackupMatch(
     .join(" ")
     .toLowerCase();
 
-  const externalRules = [
-    {
-      test: /youtube|video|transcript|repurpose|blog post|blog posts|generic garbage|voice|tone/.test(text),
-      name: "Castmagic",
-      url: "https://www.castmagic.io/",
-      why: "It turns long-form audio/video into repurposed written content and gives you more control over tone, prompts, and reusable content assets than a blank-chat AI workflow.",
-    },
-    {
-      test: /notion|pdf|export|formatting|tables?|page numbers?|images shift/.test(text),
-      name: "Notion to PDF via Super or Potion",
-      url: "https://super.so/",
-      why: "Native Notion PDF export is brittle. Publishing the page first and rendering it through a site layer gives you more predictable layout control before creating the final PDF.",
-    },
-    {
-      test: /calendar|booking|schedule|appointment|calendly/.test(text),
-      name: "Calendly",
-      url: "https://calendly.com/",
-      why: "It removes the back-and-forth from scheduling and automates reminders, availability, and booking rules.",
-    },
-    {
-      test: /zapier|make|automation|integrat|webhook|copy.*paste|manual transfer/.test(text),
-      name: "Make",
-      url: "https://www.make.com/",
-      why: "It connects apps and automates repetitive handoff work without forcing you to build a custom integration from scratch.",
-    },
-  ].find((rule) => rule.test);
+  const externalRules = getKnownExternalRecommendation(text);
 
   if (externalRules) {
     return {
