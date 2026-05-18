@@ -872,22 +872,22 @@ function SubmissionRow({
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-x-6 gap-y-2 md:grid-cols-2 text-sm">
-                <SubField label="Description" full>
+                <KV label="Description" full>
                   <p className="whitespace-pre-wrap text-cream">{s.description}</p>
-                </SubField>
-                <SubField label="Email"><span className="text-cream">{s.email ?? "—"}</span></SubField>
-                <SubField label="First name"><span className="text-cream">{s.first_name ?? "—"}</span></SubField>
-                <SubField label="Category"><span className="text-cream">{s.category ?? "—"}</span></SubField>
-                <SubField label="Work type"><span className="text-cream">{s.work_type ?? "—"}</span></SubField>
-                <SubField label="Frequency"><span className="text-cream">{s.frequency ?? "—"}</span></SubField>
-                <SubField label="Cost impact"><span className="text-cream">{s.cost_impact ?? "—"}</span></SubField>
-                <SubField label="Platforms"><span className="text-cream">{s.platforms?.join(", ") || "—"}</span></SubField>
-                <SubField label="Platforms (other)"><span className="text-cream">{s.platforms_other ?? "—"}</span></SubField>
-                <SubField label="Dream fix" full>
+                </KV>
+                <KV label="Email"><span className="text-cream">{s.email ?? "—"}</span></KV>
+                <KV label="First name"><span className="text-cream">{s.first_name ?? "—"}</span></KV>
+                <KV label="Category"><span className="text-cream">{s.category ?? "—"}</span></KV>
+                <KV label="Work type"><span className="text-cream">{s.work_type ?? "—"}</span></KV>
+                <KV label="Frequency"><span className="text-cream">{s.frequency ?? "—"}</span></KV>
+                <KV label="Cost impact"><span className="text-cream">{s.cost_impact ?? "—"}</span></KV>
+                <KV label="Platforms"><span className="text-cream">{s.platforms?.join(", ") || "—"}</span></KV>
+                <KV label="Platforms (other)"><span className="text-cream">{s.platforms_other ?? "—"}</span></KV>
+                <KV label="Dream fix" full>
                   <p className="whitespace-pre-wrap text-cream">{s.dream_fix ?? "—"}</p>
-                </SubField>
-                <SubField label="User"><span className="text-muted-foreground">{s.user_id ?? "Anonymous"}</span></SubField>
-                <SubField label="Submission ID"><span className="font-mono text-xs text-muted-foreground">{s.id}</span></SubField>
+                </KV>
+                <KV label="User"><span className="text-muted-foreground">{s.user_id ?? "Anonymous"}</span></KV>
+                <KV label="Submission ID"><span className="font-mono text-xs text-muted-foreground">{s.id}</span></KV>
               </div>
             )}
           </section>
@@ -949,7 +949,7 @@ function SubmissionRow({
   );
 }
 
-function SubField({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
+function KV({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
   return (
     <div className={full ? "md:col-span-2" : ""}>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
