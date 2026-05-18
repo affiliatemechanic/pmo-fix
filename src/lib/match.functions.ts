@@ -1,10 +1,24 @@
+import * as React from "react";
+import { render } from "@react-email/components";
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestUrl } from "@tanstack/react-start/server";
 import { generateObject, generateText } from "ai";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { template as matchResultEmailTemplate } from "@/lib/email-templates/match-result";
 import { createLovableAiGatewayProvider } from "./ai-gateway";
 import { getKnownExternalRecommendation } from "./match-rules";
+
+const SITE_NAME = "pmo-fix";
+const SENDER_DOMAIN = "notify.pmofix.com";
+const FROM_DOMAIN = "notify.pmofix.com";
+
+function generateEmailToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 const SubmissionInputSchema = z.object({
   id: z.string().uuid().optional(),
