@@ -46,13 +46,6 @@ function clientFallbackMatch(submissionId: string, parts: Array<string | null | 
   };
 }
 
-function withClientTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T | null> {
-  return Promise.race([
-    promise,
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
-  ]);
-}
-
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
@@ -221,18 +214,8 @@ function Index() {
     setMatch(null);
     setSaving(true);
     try {
-      void withClientTimeout(supabase.from("pmo_submissions").insert(submissionPayload), 3_000).then((res) => {
-        if (res?.error && res.error.code !== "23505") {
-          console.warn("Client-side submission save failed; server matcher will retry:", res.error);
-        }
-      });
-
-      // Hard client-side cap so the spinner can never hang on a stuck worker.
-      const result = await Promise.race<MatchResult | null>([
-        runMatch({ data: submissionPayload }),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 45_000)),
-      ]);
-      setMatch(result ?? clientFallbackMatch(submissionId, [pmo, category, platforms.join(" "), platformsOther, dreamFix]));
+      const result = await runMatch({ data: submissionPayload });
+      setMatch(result);
     } catch (err) {
       console.warn("Match failed; showing fallback view:", err);
       setMatch(clientFallbackMatch(submissionId, [pmo, category, platforms.join(" "), platformsOther, dreamFix]));
