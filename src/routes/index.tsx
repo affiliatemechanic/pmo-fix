@@ -791,7 +791,7 @@ function PostSubmit({
         </p>
       )}
 
-      <div className="mt-8 flex items-center gap-6">
+      <div className="mt-8 flex flex-wrap items-center gap-6">
         <button
           onClick={onReset}
           className="text-sm uppercase tracking-wider text-gold hover:underline"
@@ -799,7 +799,7 @@ function PostSubmit({
           ← Submit another PMO
         </button>
         <span className="text-xs text-muted-foreground">
-          A copy is on its way to your inbox.
+          We'll also email you a copy so you can find it later.
         </span>
       </div>
     </div>
