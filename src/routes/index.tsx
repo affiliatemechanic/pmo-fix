@@ -185,6 +185,7 @@ function Index() {
     };
 
     setMatch(null);
+    setSaving(true);
     try {
       const { error: saveError } = await supabase.from("pmo_submissions").insert(submissionPayload);
       if (saveError && saveError.code !== "23505") {
