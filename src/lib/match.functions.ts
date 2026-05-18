@@ -122,6 +122,110 @@ function normalizeSteps(steps: RawMatchOutput["next_steps"]): string[] {
   return [];
 }
 
+type CatalogFix = {
+  id: string;
+  name: string;
+  type: string;
+  summary: string;
+  description: string;
+  categories: string[];
+  platforms: string[];
+  tags: string[];
+  url: string;
+  price_note: string;
+  image_url: string;
+};
+
+function deterministicBackupMatch(
+  submission: { id: string; description: string; category?: string | null; platforms?: string[] | null; platforms_other?: string | null; dream_fix?: string | null },
+  catalog: CatalogFix[],
+): MatchResult {
+  const text = [submission.description, submission.category, submission.platforms?.join(" "), submission.platforms_other, submission.dream_fix]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const externalRules = [
+    {
+      test: /youtube|video|transcript|repurpose|blog post|blog posts|generic garbage|voice|tone/.test(text),
+      name: "Castmagic",
+      url: "https://www.castmagic.io/",
+      why: "It turns long-form audio/video into repurposed written content and gives you more control over tone, prompts, and reusable content assets than a blank-chat AI workflow.",
+    },
+    {
+      test: /notion|pdf|export|formatting|tables?|page numbers?|images shift/.test(text),
+      name: "Notion to PDF via Super or Potion",
+      url: "https://super.so/",
+      why: "Native Notion PDF export is brittle. Publishing the page first and rendering it through a site layer gives you more predictable layout control before creating the final PDF.",
+    },
+    {
+      test: /calendar|booking|schedule|appointment|calendly/.test(text),
+      name: "Calendly",
+      url: "https://calendly.com/",
+      why: "It removes the back-and-forth from scheduling and automates reminders, availability, and booking rules.",
+    },
+    {
+      test: /zapier|make|automation|integrat|webhook|copy.*paste|manual transfer/.test(text),
+      name: "Make",
+      url: "https://www.make.com/",
+      why: "It connects apps and automates repetitive handoff work without forcing you to build a custom integration from scratch.",
+    },
+  ].find((rule) => rule.test);
+
+  if (externalRules) {
+    return {
+      verdict: "recommended",
+      confidence: "medium",
+      matched_fix_id: null,
+      matched_fix: null,
+      external_recommendation: {
+        name: externalRules.name,
+        url: externalRules.url,
+        why: externalRules.why,
+      },
+      headline: `${externalRules.name} is the fix I’d try first.`,
+      reasoning: `This PMO sounds like a workflow/tooling problem more than a brand-new product gap. ${externalRules.why}`,
+      next_steps: [
+        `Try ${externalRules.name} against the exact workflow that keeps breaking.`,
+        "If it still misses, reply to the result email and we'll treat it as a build candidate.",
+      ],
+      submission_id: submission.id,
+    };
+  }
+
+  const tokens = new Set(text.match(/[a-z0-9]{4,}/g) ?? []);
+  const best = catalog
+    .map((fix) => {
+      const haystack = [fix.name, fix.summary, fix.description, fix.categories.join(" "), fix.platforms.join(" "), fix.tags.join(" ")]
+        .join(" ")
+        .toLowerCase();
+      let score = 0;
+      tokens.forEach((token) => {
+        if (haystack.includes(token)) score += token.length > 6 ? 2 : 1;
+      });
+      return { fix, score };
+    })
+    .sort((a, b) => b.score - a.score)[0];
+
+  if (best && best.score >= 4) {
+    return {
+      verdict: "recommended",
+      confidence: "medium",
+      matched_fix_id: best.fix.id,
+      matched_fix: best.fix,
+      headline: `${best.fix.name} looks like the closest fix in the vault.`,
+      reasoning: `${best.fix.name} lines up with the pain you described closely enough to be worth checking before we call this a brand-new gap.`,
+      next_steps: [
+        `Open ${best.fix.name} and compare it to the part of the workflow that keeps wasting time.`,
+        "If it solves the pain, grab it and move on. If not, we'll review the PMO as a build candidate.",
+      ],
+      submission_id: submission.id,
+    };
+  }
+
+  return fallbackMatch(submission.id);
+}
+
 export const submitAndMatch = createServerFn({ method: "POST" })
   .inputValidator((input) => SubmissionInputSchema.parse(input))
   .handler(async ({ data }): Promise<MatchResult> => {
