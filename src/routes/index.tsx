@@ -7,7 +7,7 @@ import { submitAndMatch, type MatchResult } from "@/lib/match.functions";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 
-function clientFallbackMatch(): MatchResult {
+function clientFallbackMatch(submissionId: string): MatchResult {
   return {
     verdict: "gap",
     confidence: "low",
@@ -17,7 +17,7 @@ function clientFallbackMatch(): MatchResult {
     reasoning:
       "The automatic matcher is taking too long right now. Your PMO may still have been saved, and we'll review it manually instead of keeping you stuck here.",
     next_steps: ["We'll review this as a build candidate.", "Watch your inbox for a follow-up."],
-    submission_id: "pending",
+    submission_id: submissionId,
   };
 }
 
@@ -186,23 +186,26 @@ function Index() {
       toast.error("Please enter a valid email so we can send your fix.");
       return;
     }
+    const submissionId = crypto.randomUUID();
+    const submissionPayload = {
+      id: submissionId,
+      description: pmo.trim(),
+      email: email.trim(),
+      category,
+      platforms: platforms.length ? platforms : null,
+      platforms_other: platformsOther.trim() || null,
+      frequency,
+      cost_impact: cost,
+      dream_fix: dreamFix.trim() || null,
+      first_name: firstName.trim() || null,
+      work_type: workType,
+      user_id: user?.id ?? null,
+    };
     setSaving(true);
     try {
       const result = await runWithClientTimeout(
         runMatch({
-          data: {
-            description: pmo.trim(),
-            email: email.trim(),
-            category,
-            platforms: platforms.length ? platforms : null,
-            platforms_other: platformsOther.trim() || null,
-            frequency,
-            cost_impact: cost,
-            dream_fix: dreamFix.trim() || null,
-            first_name: firstName.trim() || null,
-            work_type: workType,
-            user_id: user?.id ?? null,
-          },
+          data: submissionPayload,
         }),
         90_000,
       );
@@ -210,7 +213,12 @@ function Index() {
       setSubmitted(true);
     } catch (err) {
       if (err instanceof Error && err.message === "client-timeout") {
-        setMatch(clientFallbackMatch());
+        const { error } = await supabase.from("pmo_submissions").upsert(submissionPayload, { onConflict: "id" });
+        if (error) {
+          toast.error(`We couldn't save that yet: ${error.message}`);
+          return;
+        }
+        setMatch(clientFallbackMatch(submissionId));
         setSubmitted(true);
         toast.info("The matcher is taking too long, so we'll follow up manually.");
         return;
