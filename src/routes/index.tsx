@@ -259,14 +259,7 @@ function Index() {
         <nav className="flex items-center gap-6 text-sm text-muted-foreground">
           <a href="#how" className="hidden hover:text-gold transition md:inline">How it works</a>
           <a href="#options" className="hidden hover:text-gold transition md:inline">Build options</a>
-          {isAdmin && <Link to="/admin" className="hover:text-gold transition">Admin</Link>}
-          {user ? (
-            <button onClick={handleSignOut} className="hover:text-gold transition">Sign out</button>
-          ) : (
-            <Link to="/auth" className="rounded-md border border-gold/40 px-3 py-1.5 text-gold hover:bg-gold/10 transition">
-              Sign in
-            </Link>
-          )}
+          <UserMenu />
         </nav>
       </header>
 
