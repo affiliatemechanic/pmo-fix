@@ -108,18 +108,21 @@ function AdminPage() {
         return;
       }
 
-      const [{ data: p, error: pe }, { data: s, error: se }, { data: f, error: fe }] =
+      const [{ data: p, error: pe }, { data: s, error: se }, { data: f, error: fe }, { data: el, error: ele }] =
         await Promise.all([
           supabase.from("profiles").select("*").order("created_at", { ascending: false }),
           supabase.from("pmo_submissions").select("*").order("created_at", { ascending: false }),
           supabase.from("fixes").select("*").order("created_at", { ascending: false }),
+          supabase.from("email_send_log").select("*").order("created_at", { ascending: false }).limit(2000),
         ]);
       if (pe) toast.error(pe.message);
       if (se) toast.error(se.message);
       if (fe) toast.error(fe.message);
+      if (ele) toast.error(ele.message);
       setProfiles(p ?? []);
-      setSubmissions(s ?? []);
+      setSubmissions((s ?? []) as Submission[]);
       setFixes((f ?? []) as Fix[]);
+      setEmailLogs((el ?? []) as EmailLogRow[]);
       setChecking(false);
     })();
   }, [navigate]);
