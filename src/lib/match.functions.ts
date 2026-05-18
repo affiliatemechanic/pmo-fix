@@ -370,13 +370,9 @@ async function queueMatchResultEmail(submission: EmailSubmission, result: MatchR
           : null,
       problemPreview: submission.description.length > 240 ? submission.description.slice(0, 237) + "..." : submission.description,
     };
-    const element = React.createElement(matchResultEmailTemplate.component, templateData);
-    const html = await render(element);
-    const text = await render(element, { plainText: true });
-    const subject =
-      typeof matchResultEmailTemplate.subject === "function"
-        ? matchResultEmailTemplate.subject(templateData)
-        : matchResultEmailTemplate.subject;
+    const html = renderMatchEmailHtml(templateData);
+    const text = renderMatchEmailText(templateData);
+    const subject = `PMOfix: ${result.headline}`;
 
     await supabaseAdmin.from("email_send_log").insert({
       message_id: messageId,
