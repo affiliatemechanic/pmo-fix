@@ -408,6 +408,23 @@ Pick the best match or declare a gap.`;
       }
     }
 
+    // If AI declares a gap, do one deterministic pass for obvious known
+    // external fixes before showing the user the build-board message.
+    if (output.verdict === "gap") {
+      const backup = deterministicBackupMatch(submission, catalog);
+      if (backup.verdict !== "gap") {
+        output = {
+          verdict: backup.verdict,
+          confidence: backup.confidence,
+          matched_fix_id: backup.matched_fix_id,
+          external_recommendation: backup.external_recommendation,
+          headline: backup.headline,
+          reasoning: backup.reasoning,
+          next_steps: backup.next_steps,
+        };
+      }
+    }
+
     // Validate matched_fix_id actually exists in catalog
     let matchedFixId = output.matched_fix_id;
     if (matchedFixId && !catalog.find((c) => c.id === matchedFixId)) {
