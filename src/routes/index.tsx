@@ -810,15 +810,6 @@ function PostSubmit({
         </div>
       )}
 
-      {!hasMatchResult && (
-        <div className="mt-6 rounded-lg border border-gold/30 bg-gold/5 p-4 text-sm text-muted-foreground">
-          <div className="mb-3 flex items-center gap-3 text-cream">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-gold" />
-            Matching is running in the background.
-          </div>
-          You can close this page — the submission is already in the queue.
-        </div>
-      )}
 
       {hasMatchResult && verdict === "gap" && (
         <p className="mt-6 rounded-lg border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
