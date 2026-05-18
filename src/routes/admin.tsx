@@ -532,6 +532,24 @@ function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<voi
                 Active (visible to matching engine)
               </label>
             </div>
+            <div className="mt-6 rounded-xl border border-dashed border-gold/30 bg-secondary/20 p-4">
+              <div className="mb-3 text-xs uppercase tracking-[0.2em] text-gold">Live preview</div>
+              <FixCard
+                fix={{
+                  name: editing.name || "(untitled fix)",
+                  type: editing.type,
+                  summary: editing.summary || "<i>(summary will appear here)</i>",
+                  description: editing.description,
+                  url: editing.url,
+                  image_url: editing.image_url,
+                  price_note: editing.price_note,
+                  categories: editing.categories.split(",").map((s) => s.trim()).filter(Boolean),
+                  platforms: editing.platforms.split(",").map((s) => s.trim()).filter(Boolean),
+                  tags: editing.tags.split(",").map((s) => s.trim()).filter(Boolean),
+                }}
+                showDescription
+              />
+            </div>
             <div className="mt-6 flex justify-end gap-3">
               <button
                 onClick={() => setEditing(null)}
