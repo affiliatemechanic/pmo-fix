@@ -398,12 +398,8 @@ Pick the best match or declare a gap.`;
         output = MatchSchema.parse(parsed);
       } catch (textErr) {
         const msg = errorMessage(textErr);
-        console.error("AI match failed (text fallback also failed):", msg, textErr);
-        const fallback: MatchResult = {
-          ...fallbackMatch(submission.id),
-          reasoning:
-            fallbackMatch(submission.id).reasoning + ` (debug: ${msg.slice(0, 300)})`,
-        };
+        console.error("AI match failed (text fallback also failed), using deterministic backup:", msg, textErr);
+        const fallback = deterministicBackupMatch(submission, catalog);
         await supabaseAdmin
           .from("pmo_submissions")
           .update({ match_result: fallback, matched_at: new Date().toISOString() })
