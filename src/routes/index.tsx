@@ -193,12 +193,17 @@ function Index() {
         console.warn("Client-side submission save failed; server matcher will retry:", saveError);
       }
 
-      const result = await runMatch({ data: submissionPayload });
-      if (!isSystemFallbackMatch(result)) {
+      // Hard client-side cap so the spinner can never hang on a stuck worker.
+      const result = await Promise.race<MatchResult | null>([
+        runMatch({ data: submissionPayload }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 55_000)),
+      ]);
+      if (result && !isSystemFallbackMatch(result)) {
         setMatch(result);
       }
     } catch (err) {
       console.warn("Match failed; showing fallback view:", err);
+      toast.error("Matcher hiccuped — your PMO is saved, we'll follow up by email.");
     } finally {
       setSaving(false);
       setSubmitted(true);
