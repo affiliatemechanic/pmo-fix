@@ -12,6 +12,7 @@ import {
   Text,
 } from '@react-email/components'
 import type { TemplateEntry } from './registry'
+import { sanitizeHtml } from '../sanitize-html'
 
 const SITE_NAME = 'PMOfix'
 const SITE_URL = 'https://pmofix.com'
