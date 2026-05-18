@@ -318,15 +318,23 @@ Pick the best match or declare a gap.`;
       : null;
     const hasExternal = !!output.external_recommendation?.name;
     const verdict =
-      !matchedFix && !hasExternal && output.verdict !== "gap"
+      !matchedFix && !hasExternal
         ? "gap"
-        : output.verdict;
+        : output.verdict ?? (hasExternal ? "recommended" : "match");
 
     const result: MatchResult = {
       ...output,
       verdict,
+      confidence: output.confidence ?? "medium",
       matched_fix_id: matchedFixId,
       matched_fix: matchedFix,
+      headline: output.headline || (matchedFix ? `${matchedFix.name} looks like your best fix.` : "We found a fix worth trying."),
+      reasoning: output.reasoning || (matchedFix ? `${matchedFix.name} maps to the pain you described and is the closest fit in the PMOfix vault.` : "We found a practical recommendation for this PMO."),
+      next_steps: normalizeSteps(output.next_steps).length
+        ? normalizeSteps(output.next_steps)
+        : matchedFix
+          ? [`Open ${matchedFix.name} and compare it against the workflow that keeps breaking.`, "If it solves the pain, grab the fix and move on."]
+          : ["Try the recommended fix and see if it removes the recurring pain.", "If it misses, reply to the email and we'll review it manually."],
       submission_id: submission.id,
     };
 
