@@ -72,38 +72,77 @@ function fallbackMatch(submissionId: string): MatchResult {
   };
 }
 
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message || err.name || "Unknown error";
+  if (typeof err === "string") return err;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return "Unknown error (unserializable)";
+  }
+}
+
 export const submitAndMatch = createServerFn({ method: "POST" })
   .inputValidator((input) => SubmissionInputSchema.parse(input))
   .handler(async ({ data }): Promise<MatchResult> => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("Missing LOVABLE_API_KEY");
+    try {
+      return await runSubmitAndMatch(data);
+    } catch (err) {
+      // TanStack serializes thrown errors with seroval; Supabase / fetch / AI
+      // SDK errors often contain non-serializable fields (Headers, Request,
+      // circular refs) which makes the client see an opaque "Seroval Error"
+      // and the real cause never reaches worker logs. Log the full original
+      // here and rethrow a plain Error with a safe string message.
+      console.error("submitAndMatch failed:", err);
+      throw new Error(errorMessage(err));
+    }
+  });
 
-    // 1. Insert submission with admin client (bypasses RLS, returns id)
-    const submissionPayload = {
-      ...(data.id ? { id: data.id } : {}),
-      description: data.description.trim(),
-      email: data.email.trim(),
-      category: data.category ?? null,
-      platforms: data.platforms?.length ? data.platforms : null,
-      platforms_other: data.platforms_other?.trim() || null,
-      frequency: data.frequency ?? null,
-      cost_impact: data.cost_impact ?? null,
-      dream_fix: data.dream_fix?.trim() || null,
-      first_name: data.first_name?.trim() || null,
-      work_type: data.work_type ?? null,
-      user_id: data.user_id ?? null,
-    };
+async function runSubmitAndMatch(
+  data: z.infer<typeof SubmissionInputSchema>,
+): Promise<MatchResult> {
+  // 1. Insert submission FIRST so the row is always saved, even if matching
+  //    fails downstream. The catalog load + AI call run after.
+  const submissionPayload = {
+    ...(data.id ? { id: data.id } : {}),
+    description: data.description.trim(),
+    email: data.email.trim(),
+    category: data.category ?? null,
+    platforms: data.platforms?.length ? data.platforms : null,
+    platforms_other: data.platforms_other?.trim() || null,
+    frequency: data.frequency ?? null,
+    cost_impact: data.cost_impact ?? null,
+    dream_fix: data.dream_fix?.trim() || null,
+    first_name: data.first_name?.trim() || null,
+    work_type: data.work_type ?? null,
+    user_id: data.user_id ?? null,
+  };
 
-    const { data: submission, error: insErr } = await withTimeout(
-      supabaseAdmin
-        .from("pmo_submissions")
-        .upsert(submissionPayload, { onConflict: "id" })
-        .select()
-        .single(),
-      10_000,
-      "Saving submission",
-    );
-    if (insErr || !submission) throw new Error(insErr?.message ?? "Failed to save submission");
+  const { data: submission, error: insErr } = await withTimeout(
+    supabaseAdmin
+      .from("pmo_submissions")
+      .upsert(submissionPayload, { onConflict: "id" })
+      .select()
+      .single(),
+    10_000,
+    "Saving submission",
+  );
+  if (insErr || !submission) {
+    console.error("pmo_submissions upsert failed:", insErr);
+    throw new Error(insErr?.message ?? "Failed to save submission");
+  }
+
+  const apiKey = process.env.LOVABLE_API_KEY;
+  if (!apiKey) {
+    // Submission is saved; downgrade gracefully so the user doesn't get a 500.
+    console.error("Missing LOVABLE_API_KEY — returning manual-match fallback");
+    const fallback = fallbackMatch(submission.id);
+    await supabaseAdmin
+      .from("pmo_submissions")
+      .update({ match_result: fallback, matched_at: new Date().toISOString() })
+      .eq("id", submission.id);
+    return fallback;
+  }
 
     // 2. Load active fix catalog
     const { data: fixes, error: fixErr } = await withTimeout(
