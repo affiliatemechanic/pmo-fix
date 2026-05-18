@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import logo from "@/assets/pmofix-logo.png";
+import { UserMenu } from "./UserMenu";
 
 export function LegalLayout({
   title,
@@ -21,9 +22,12 @@ export function LegalLayout({
               PMO<span className="text-foreground">fix</span>
             </span>
           </Link>
-          <Link to="/" className="text-sm uppercase tracking-wider text-gold hover:underline">
-            ← Home
-          </Link>
+          <div className="flex items-center gap-4">
+            <UserMenu />
+            <Link to="/" className="text-sm uppercase tracking-wider text-gold hover:underline">
+              ← Home
+            </Link>
+          </div>
         </div>
       </header>
 

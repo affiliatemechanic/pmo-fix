@@ -7,6 +7,7 @@ import { getKnownExternalRecommendation } from "@/lib/match-rules";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 import { FixCard } from "@/components/FixCard";
+import { UserMenu } from "@/components/UserMenu";
 
 async function submitMatchViaApi(payload: Record<string, unknown>): Promise<MatchResult> {
   const response = await fetch("/api/public/match", {
@@ -160,28 +161,17 @@ function Index() {
   const [match, setMatch] = useState<MatchResult | null>(null);
 
   const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (user?.email) setEmail(user.email);
   }, [user]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
+    supabase.auth.getSession().then(({ data }) => {
       setUser(data.session?.user ?? null);
-      if (data.session) {
-        const { data: roles } = await supabase
-          .from("user_roles").select("role").eq("user_id", data.session.user.id);
-        setIsAdmin(!!roles?.some((r) => r.role === "admin"));
-      }
     });
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
       setUser(session?.user ?? null);
-      if (session) {
-        const { data: roles } = await supabase
-          .from("user_roles").select("role").eq("user_id", session.user.id);
-        setIsAdmin(!!roles?.some((r) => r.role === "admin"));
-      } else setIsAdmin(false);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -192,10 +182,7 @@ function Index() {
     return () => clearInterval(id);
   }, [saving]);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast.success("Signed out.");
-  };
+
 
   const togglePlatform = (p: string) =>
     setPlatforms((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
@@ -259,14 +246,7 @@ function Index() {
         <nav className="flex items-center gap-6 text-sm text-muted-foreground">
           <a href="#how" className="hidden hover:text-gold transition md:inline">How it works</a>
           <a href="#options" className="hidden hover:text-gold transition md:inline">Build options</a>
-          {isAdmin && <Link to="/admin" className="hover:text-gold transition">Admin</Link>}
-          {user ? (
-            <button onClick={handleSignOut} className="hover:text-gold transition">Sign out</button>
-          ) : (
-            <Link to="/auth" className="rounded-md border border-gold/40 px-3 py-1.5 text-gold hover:bg-gold/10 transition">
-              Sign in
-            </Link>
-          )}
+          <UserMenu />
         </nav>
       </header>
 
