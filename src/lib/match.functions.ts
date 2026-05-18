@@ -70,7 +70,7 @@ export const submitAndMatch = createServerFn({ method: "POST" })
     // 2. Load active fix catalog
     const { data: fixes, error: fixErr } = await supabaseAdmin
       .from("fixes")
-      .select("id, name, type, summary, description, url, categories, platforms, tags, price_note")
+      .select("id, name, type, summary, description, url, categories, platforms, tags, price_note, image_url")
       .eq("active", true);
     if (fixErr) throw new Error(fixErr.message);
 
@@ -85,6 +85,7 @@ export const submitAndMatch = createServerFn({ method: "POST" })
       tags: f.tags ?? [],
       url: f.url ?? "",
       price_note: f.price_note ?? "",
+      image_url: f.image_url ?? "",
     }));
 
     // 3. Ask the AI to match
