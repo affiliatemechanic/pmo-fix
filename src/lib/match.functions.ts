@@ -41,13 +41,20 @@ export type MatchResult = z.infer<typeof MatchSchema> & {
   submission_id: string;
 };
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
-    }),
-  ]);
+function withTimeout<T>(promise: PromiseLike<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 function fallbackMatch(submissionId: string): MatchResult {
@@ -165,17 +172,7 @@ Pick the best match or declare a gap.`;
     } catch (err) {
       console.error("AI match failed/timeout:", err);
       // Persist a graceful fallback so the row isn't left dangling.
-      const fallback: MatchResult = {
-        verdict: "gap",
-        confidence: "low",
-        matched_fix_id: null,
-        matched_fix: null,
-        headline: "We couldn't auto-match this one — we'll follow up.",
-        reasoning:
-          "Our matching engine timed out on this submission. Your PMO has been saved and we'll review it manually.",
-        next_steps: ["We've logged this as a build candidate.", "Watch your inbox for a follow-up."],
-        submission_id: submission.id,
-      };
+      const fallback = fallbackMatch(submission.id);
       await supabaseAdmin
         .from("pmo_submissions")
         .update({ match_result: fallback, matched_at: new Date().toISOString() })
