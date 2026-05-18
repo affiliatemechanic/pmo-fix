@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { submitAndMatch, type MatchResult } from "@/lib/match.functions";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
+import { FixCard } from "@/components/FixCard";
 
 function isSystemFallbackMatch(match: MatchResult): boolean {
   return (
