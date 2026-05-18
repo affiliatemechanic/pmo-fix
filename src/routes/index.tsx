@@ -184,27 +184,23 @@ function Index() {
       user_id: user?.id ?? null,
     };
 
-    // Never put the user behind the network/AI path. Confirm the submission
-    // immediately, then persist and match in the background.
-    setSaving(false);
     setMatch(null);
-    setSubmitted(true);
-
-    void (async () => {
-      try {
-        const { error: saveError } = await supabase.from("pmo_submissions").insert(submissionPayload);
-        if (saveError && saveError.code !== "23505") {
-          console.warn("Client-side submission save failed; server matcher will retry:", saveError);
-        }
-
-        const result = await runMatch({ data: submissionPayload });
-        if (!isSystemFallbackMatch(result)) {
-          setMatch(result);
-        }
-      } catch (err) {
-        console.warn("Submission background processing failed after fallback was shown:", err);
+    try {
+      const { error: saveError } = await supabase.from("pmo_submissions").insert(submissionPayload);
+      if (saveError && saveError.code !== "23505") {
+        console.warn("Client-side submission save failed; server matcher will retry:", saveError);
       }
-    })();
+
+      const result = await runMatch({ data: submissionPayload });
+      if (!isSystemFallbackMatch(result)) {
+        setMatch(result);
+      }
+    } catch (err) {
+      console.warn("Match failed; showing fallback view:", err);
+    } finally {
+      setSaving(false);
+      setSubmitted(true);
+    }
   };
 
   const canQ1 = pmo.trim().length >= 5;
@@ -814,15 +810,6 @@ function PostSubmit({
         </div>
       )}
 
-      {!hasMatchResult && (
-        <div className="mt-6 rounded-lg border border-gold/30 bg-gold/5 p-4 text-sm text-muted-foreground">
-          <div className="mb-3 flex items-center gap-3 text-cream">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-gold" />
-            Matching is running in the background.
-          </div>
-          You can close this page — the submission is already in the queue.
-        </div>
-      )}
 
       {hasMatchResult && verdict === "gap" && (
         <p className="mt-6 rounded-lg border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
