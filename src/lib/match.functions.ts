@@ -20,21 +20,23 @@ const SubmissionInputSchema = z.object({
   user_id: z.string().uuid().nullable().optional(),
 });
 
+// NOTE: keep schema permissive — Gemini's structured output frequently
+// violates min/max/.nullable() unions, causing "response did not match schema"
+// failures. We normalize/clamp the values ourselves after parsing.
 const MatchSchema = z.object({
   verdict: z.enum(["match", "recommended", "gap"]),
-  confidence: z.enum(["low", "medium", "high"]),
-  matched_fix_id: z.string().nullable(),
+  confidence: z.enum(["low", "medium", "high"]).optional(),
+  matched_fix_id: z.string().nullish(),
   external_recommendation: z
     .object({
-      name: z.string().min(1).max(120),
-      url: z.string().max(500).nullable().optional(),
-      why: z.string().min(1).max(600),
+      name: z.string().optional(),
+      url: z.string().nullish(),
+      why: z.string().optional(),
     })
-    .nullable()
-    .optional(),
-  headline: z.string().min(1).max(200),
-  reasoning: z.string().min(1).max(2000),
-  next_steps: z.array(z.string().min(1).max(400)).min(1).max(5),
+    .nullish(),
+  headline: z.string(),
+  reasoning: z.string(),
+  next_steps: z.array(z.string()),
 });
 
 export type MatchResult = z.infer<typeof MatchSchema> & {
