@@ -41,6 +41,29 @@ export type MatchResult = z.infer<typeof MatchSchema> & {
   submission_id: string;
 };
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    }),
+  ]);
+}
+
+function fallbackMatch(submissionId: string): MatchResult {
+  return {
+    verdict: "gap",
+    confidence: "low",
+    matched_fix_id: null,
+    matched_fix: null,
+    headline: "We couldn't auto-match this one — we'll follow up.",
+    reasoning:
+      "Our matching engine took too long on this submission. Your PMO has been saved and we'll review it manually.",
+    next_steps: ["We've logged this as a build candidate.", "Watch your inbox for a follow-up."],
+    submission_id: submissionId,
+  };
+}
+
 export const submitAndMatch = createServerFn({ method: "POST" })
   .inputValidator((input) => SubmissionInputSchema.parse(input))
   .handler(async ({ data }): Promise<MatchResult> => {
@@ -48,30 +71,38 @@ export const submitAndMatch = createServerFn({ method: "POST" })
     if (!apiKey) throw new Error("Missing LOVABLE_API_KEY");
 
     // 1. Insert submission with admin client (bypasses RLS, returns id)
-    const { data: submission, error: insErr } = await supabaseAdmin
-      .from("pmo_submissions")
-      .insert({
-        description: data.description.trim(),
-        email: data.email.trim(),
-        category: data.category ?? null,
-        platforms: data.platforms?.length ? data.platforms : null,
-        platforms_other: data.platforms_other?.trim() || null,
-        frequency: data.frequency ?? null,
-        cost_impact: data.cost_impact ?? null,
-        dream_fix: data.dream_fix?.trim() || null,
-        first_name: data.first_name?.trim() || null,
-        work_type: data.work_type ?? null,
-        user_id: data.user_id ?? null,
-      })
-      .select()
-      .single();
+    const { data: submission, error: insErr } = await withTimeout(
+      supabaseAdmin
+        .from("pmo_submissions")
+        .insert({
+          description: data.description.trim(),
+          email: data.email.trim(),
+          category: data.category ?? null,
+          platforms: data.platforms?.length ? data.platforms : null,
+          platforms_other: data.platforms_other?.trim() || null,
+          frequency: data.frequency ?? null,
+          cost_impact: data.cost_impact ?? null,
+          dream_fix: data.dream_fix?.trim() || null,
+          first_name: data.first_name?.trim() || null,
+          work_type: data.work_type ?? null,
+          user_id: data.user_id ?? null,
+        })
+        .select()
+        .single(),
+      10_000,
+      "Saving submission",
+    );
     if (insErr || !submission) throw new Error(insErr?.message ?? "Failed to save submission");
 
     // 2. Load active fix catalog
-    const { data: fixes, error: fixErr } = await supabaseAdmin
-      .from("fixes")
-      .select("id, name, type, summary, description, url, categories, platforms, tags, price_note, image_url")
-      .eq("active", true);
+    const { data: fixes, error: fixErr } = await withTimeout(
+      supabaseAdmin
+        .from("fixes")
+        .select("id, name, type, summary, description, url, categories, platforms, tags, price_note, image_url")
+        .eq("active", true),
+      10_000,
+      "Loading fixes",
+    );
     if (fixErr) throw new Error(fixErr.message);
 
     const catalog = (fixes ?? []).map((f) => ({
