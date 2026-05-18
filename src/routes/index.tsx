@@ -15,7 +15,7 @@ function clientFallbackMatch(submissionId: string): MatchResult {
     matched_fix: null,
     headline: "We got it — we'll match this manually.",
     reasoning:
-      "The automatic matcher is taking too long right now. Your PMO may still have been saved, and we'll review it manually instead of keeping you stuck here.",
+      "The automatic matcher is taking too long right now. Your PMO has been saved, and we'll review it manually instead of keeping you stuck here.",
     next_steps: ["We'll review this as a build candidate.", "Watch your inbox for a follow-up."],
     submission_id: submissionId,
   };
@@ -203,28 +203,33 @@ function Index() {
     };
     setSaving(true);
     try {
+      // Save immediately from the browser first. The server-side matcher may
+      // still run afterward, but the admin queue should not depend on it.
+      const { error: saveError } = await supabase.from("pmo_submissions").insert(submissionPayload);
+      if (saveError && saveError.code !== "23505") {
+        toast.error(`We couldn't save that yet: ${saveError.message}`);
+        return;
+      }
+
       const result = await runWithClientTimeout(
         runMatch({
           data: submissionPayload,
         }),
-        90_000,
+        20_000,
       );
       setMatch(result);
       setSubmitted(true);
     } catch (err) {
       if (err instanceof Error && err.message === "client-timeout") {
-        const { error } = await supabase.from("pmo_submissions").insert(submissionPayload);
-        if (error && error.code !== "23505") {
-          toast.error(`We couldn't save that yet: ${error.message}`);
-          return;
-        }
         setMatch(clientFallbackMatch(submissionId));
         setSubmitted(true);
         toast.info("The matcher is taking too long, so we'll follow up manually.");
         return;
       }
-      const msg = err instanceof Error ? err.message : "Something went wrong.";
-      toast.error(msg);
+      console.warn("Matcher failed after submission was saved:", err);
+      setMatch(clientFallbackMatch(submissionId));
+      setSubmitted(true);
+      toast.info("We saved it. The matcher is having a moment, so we'll follow up manually.");
     } finally {
       setSaving(false);
     }
