@@ -184,27 +184,23 @@ function Index() {
       user_id: user?.id ?? null,
     };
 
-    // Never put the user behind the network/AI path. Confirm the submission
-    // immediately, then persist and match in the background.
-    setSaving(false);
     setMatch(null);
-    setSubmitted(true);
-
-    void (async () => {
-      try {
-        const { error: saveError } = await supabase.from("pmo_submissions").insert(submissionPayload);
-        if (saveError && saveError.code !== "23505") {
-          console.warn("Client-side submission save failed; server matcher will retry:", saveError);
-        }
-
-        const result = await runMatch({ data: submissionPayload });
-        if (!isSystemFallbackMatch(result)) {
-          setMatch(result);
-        }
-      } catch (err) {
-        console.warn("Submission background processing failed after fallback was shown:", err);
+    try {
+      const { error: saveError } = await supabase.from("pmo_submissions").insert(submissionPayload);
+      if (saveError && saveError.code !== "23505") {
+        console.warn("Client-side submission save failed; server matcher will retry:", saveError);
       }
-    })();
+
+      const result = await runMatch({ data: submissionPayload });
+      if (!isSystemFallbackMatch(result)) {
+        setMatch(result);
+      }
+    } catch (err) {
+      console.warn("Match failed; showing fallback view:", err);
+    } finally {
+      setSaving(false);
+      setSubmitted(true);
+    }
   };
 
   const canQ1 = pmo.trim().length >= 5;
