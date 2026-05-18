@@ -151,6 +151,13 @@ type CatalogFix = {
   image_url: string;
 };
 
+type EmailSubmission = {
+  id: string;
+  email?: string | null;
+  first_name?: string | null;
+  description: string;
+};
+
 function deterministicBackupMatch(
   submission: { id: string; description: string; category?: string | null; platforms?: string[] | null; platforms_other?: string | null; dream_fix?: string | null },
   catalog: CatalogFix[],
@@ -214,6 +221,157 @@ function deterministicBackupMatch(
   }
 
   return fallbackMatch(submission.id);
+}
+
+async function queueMatchResultEmail(submission: EmailSubmission, result: MatchResult): Promise<void> {
+  const messageId = `match-result-${submission.id}`;
+
+  try {
+    if (!submission.email) throw new Error("Submission email is missing");
+
+    const recipientEmail = submission.email;
+    const normalizedEmail = recipientEmail.toLowerCase();
+    const idempotencyKey = messageId;
+    const { data: existingSend, error: existingSendError } = await supabaseAdmin
+      .from("email_send_log")
+      .select("id, status")
+      .eq("message_id", messageId)
+      .in("status", ["pending", "sent", "suppressed"])
+      .limit(1);
+    if (existingSendError) throw existingSendError;
+    if (existingSend?.length) return;
+
+    const { data: suppressed, error: suppressionError } = await supabaseAdmin
+      .from("suppressed_emails")
+      .select("id")
+      .eq("email", normalizedEmail)
+      .maybeSingle();
+    if (suppressionError) throw suppressionError;
+
+    if (suppressed) {
+      await supabaseAdmin.from("email_send_log").insert({
+        message_id: messageId,
+        template_name: "match-result",
+        recipient_email: recipientEmail,
+        status: "suppressed",
+      });
+      return;
+    }
+
+    const { data: existingToken, error: tokenLookupError } = await supabaseAdmin
+      .from("email_unsubscribe_tokens")
+      .select("token, used_at")
+      .eq("email", normalizedEmail)
+      .maybeSingle();
+    if (tokenLookupError) throw tokenLookupError;
+
+    if (existingToken?.used_at) {
+      await supabaseAdmin.from("email_send_log").insert({
+        message_id: messageId,
+        template_name: "match-result",
+        recipient_email: recipientEmail,
+        status: "suppressed",
+        error_message: "Unsubscribe token already used",
+      });
+      return;
+    }
+
+    let unsubscribeToken = existingToken && !existingToken.used_at ? existingToken.token : null;
+    if (!unsubscribeToken) {
+      unsubscribeToken = generateEmailToken();
+      const { error: tokenError } = await supabaseAdmin
+        .from("email_unsubscribe_tokens")
+        .upsert({ token: unsubscribeToken, email: normalizedEmail }, { onConflict: "email", ignoreDuplicates: true });
+      if (tokenError) throw tokenError;
+      const { data: storedToken, error: reReadError } = await supabaseAdmin
+        .from("email_unsubscribe_tokens")
+        .select("token")
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+      if (reReadError || !storedToken) throw reReadError ?? new Error("Missing unsubscribe token");
+      unsubscribeToken = storedToken.token;
+    }
+
+    const matchedFix = result.matched_fix;
+    const templateData = {
+      firstName: submission.first_name ?? undefined,
+      verdict: result.verdict,
+      headline: result.headline,
+      reasoning: result.reasoning,
+      nextSteps: result.next_steps,
+      matchedFix: matchedFix
+        ? {
+            name: matchedFix.name,
+            summary: matchedFix.summary,
+            url: matchedFix.url || undefined,
+            price_note: matchedFix.price_note || undefined,
+          }
+        : result.external_recommendation?.name
+          ? {
+              name: result.external_recommendation.name,
+              summary: result.external_recommendation.why || "This is the closest practical recommendation for the PMO you described.",
+              url: result.external_recommendation.url || undefined,
+            }
+          : null,
+      problemPreview: submission.description.length > 240 ? submission.description.slice(0, 237) + "..." : submission.description,
+    };
+    const element = React.createElement(matchResultEmailTemplate.component, templateData);
+    const html = await render(element);
+    const text = await render(element, { plainText: true });
+    const subject =
+      typeof matchResultEmailTemplate.subject === "function"
+        ? matchResultEmailTemplate.subject(templateData)
+        : matchResultEmailTemplate.subject;
+
+    await supabaseAdmin.from("email_send_log").insert({
+      message_id: messageId,
+      template_name: "match-result",
+      recipient_email: recipientEmail,
+      status: "pending",
+    });
+
+    const { error: enqueueError } = await supabaseAdmin.rpc("enqueue_email", {
+      queue_name: "transactional_emails",
+      payload: {
+        message_id: messageId,
+        to: recipientEmail,
+        from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+        sender_domain: SENDER_DOMAIN,
+        subject,
+        html,
+        text,
+        purpose: "transactional",
+        label: "match-result",
+        idempotency_key: idempotencyKey,
+        unsubscribe_token: unsubscribeToken,
+        queued_at: new Date().toISOString(),
+      },
+    });
+
+    if (enqueueError) {
+      await supabaseAdmin.from("email_send_log").insert({
+        message_id: messageId,
+        template_name: "match-result",
+        recipient_email: recipientEmail,
+        status: "failed",
+        error_message: "Failed to enqueue email",
+      });
+      throw enqueueError;
+    }
+
+    console.log("Match result email enqueued for", recipientEmail);
+  } catch (err) {
+    console.error("Failed to dispatch match result email", err);
+    if (submission.email) {
+      await supabaseAdmin.from("email_send_log").insert({
+        message_id: messageId,
+        template_name: "match-result",
+        recipient_email: submission.email,
+        status: "failed",
+        error_message: errorMessage(err).slice(0, 500),
+      });
+    }
+  }
 }
 
 export const submitAndMatch = createServerFn({ method: "POST" })
