@@ -37,6 +37,7 @@ type Fix = {
   summary: string;
   description: string | null;
   url: string | null;
+  image_url: string | null;
   categories: string[] | null;
   platforms: string[] | null;
   tags: string[] | null;
