@@ -20,11 +20,10 @@ const SubmissionInputSchema = z.object({
   user_id: z.string().uuid().nullable().optional(),
 });
 
-// NOTE: keep schema permissive — Gemini's structured output frequently
-// violates min/max/.nullable() unions, causing "response did not match schema"
-// failures. We normalize/clamp the values ourselves after parsing.
+// NOTE: keep schema very permissive — model JSON can omit optional fields,
+// return nulls, or vary scalar/array shapes. We normalize after parsing.
 const MatchSchema = z.object({
-  verdict: z.enum(["match", "recommended", "gap"]),
+  verdict: z.enum(["match", "recommended", "gap"]).optional(),
   confidence: z.enum(["low", "medium", "high"]).optional(),
   matched_fix_id: z.string().nullish(),
   external_recommendation: z
@@ -34,9 +33,9 @@ const MatchSchema = z.object({
       why: z.string().optional(),
     })
     .nullish(),
-  headline: z.string(),
-  reasoning: z.string(),
-  next_steps: z.array(z.string()),
+  headline: z.string().nullish(),
+  reasoning: z.string().nullish(),
+  next_steps: z.union([z.array(z.string()), z.string()]).nullish(),
 });
 
 export type MatchResult = z.infer<typeof MatchSchema> & {
@@ -94,6 +93,20 @@ function errorMessage(err: unknown): string {
   } catch {
     return "Unknown error (unserializable)";
   }
+}
+
+function extractJsonObject(raw: string) {
+  const cleaned = raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  const jsonStr = firstBrace >= 0 && lastBrace > firstBrace
+    ? cleaned.slice(firstBrace, lastBrace + 1)
+    : cleaned;
+  return JSON.parse(jsonStr);
 }
 
 export const submitAndMatch = createServerFn({ method: "POST" })
