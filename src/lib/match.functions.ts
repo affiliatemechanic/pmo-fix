@@ -453,7 +453,9 @@ Pick the best match or declare a gap.`;
     // Queue the result email directly. Calling our own HTTP route from a server
     // function is unreliable in the live worker runtime, so keep this in-process.
     try {
-      const normalizedEmail = submission.email.toLowerCase();
+      if (!submission.email) throw new Error("Submission email is missing");
+      const recipientEmail = submission.email;
+      const normalizedEmail = recipientEmail.toLowerCase();
       const messageId = crypto.randomUUID();
       const idempotencyKey = `match-result-${submission.id}`;
       const { data: suppressed, error: suppressionError } = await supabaseAdmin
@@ -467,7 +469,7 @@ Pick the best match or declare a gap.`;
         await supabaseAdmin.from("email_send_log").insert({
           message_id: messageId,
           template_name: "match-result",
-          recipient_email: submission.email,
+          recipient_email: recipientEmail,
           status: "suppressed",
         });
       } else {
@@ -527,14 +529,14 @@ Pick the best match or declare a gap.`;
         await supabaseAdmin.from("email_send_log").insert({
           message_id: messageId,
           template_name: "match-result",
-          recipient_email: submission.email,
+          recipient_email: recipientEmail,
           status: "pending",
         });
         const { error: enqueueError } = await supabaseAdmin.rpc("enqueue_email", {
           queue_name: "transactional_emails",
           payload: {
             message_id: messageId,
-            to: submission.email,
+            to: recipientEmail,
             from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
             sender_domain: SENDER_DOMAIN,
             subject,
