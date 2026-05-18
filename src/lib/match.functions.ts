@@ -24,6 +24,14 @@ const MatchSchema = z.object({
   verdict: z.enum(["match", "recommended", "gap"]),
   confidence: z.enum(["low", "medium", "high"]),
   matched_fix_id: z.string().nullable(),
+  external_recommendation: z
+    .object({
+      name: z.string().min(1).max(120),
+      url: z.string().max(500).nullable().optional(),
+      why: z.string().min(1).max(600),
+    })
+    .nullable()
+    .optional(),
   headline: z.string().min(1).max(200),
   reasoning: z.string().min(1).max(2000),
   next_steps: z.array(z.string().min(1).max(400)).min(1).max(5),
