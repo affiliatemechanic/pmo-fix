@@ -288,5 +288,6 @@ Pick the best match or declare a gap.`;
       console.error("Failed to dispatch match result email", err);
     }
 
-    return result;
-  });
+  return result;
+}
+
