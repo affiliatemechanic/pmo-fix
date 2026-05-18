@@ -36,6 +36,7 @@ export type MatchResult = z.infer<typeof MatchSchema> & {
     summary: string;
     url?: string;
     price_note?: string;
+    image_url?: string;
   } | null;
   submission_id: string;
 };
