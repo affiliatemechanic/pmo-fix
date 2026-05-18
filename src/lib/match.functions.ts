@@ -216,14 +216,24 @@ Pick the best match or declare a gap.`;
     try {
       const res = await generateText({
         model,
-        system,
+        system: system + "\n\nRespond with ONLY a JSON object matching this exact shape, no prose, no markdown fences:\n" + JSON.stringify({
+          verdict: "match|recommended|gap",
+          confidence: "low|medium|high",
+          matched_fix_id: "uuid or null",
+          external_recommendation: { name: "string", url: "string or null", why: "string" },
+          headline: "string",
+          reasoning: "string",
+          next_steps: ["string"],
+        }),
         prompt: userPrompt,
-        experimental_output: Output.object({ schema: MatchSchema }),
         abortSignal: aiAbort,
       });
-      output = res.experimental_output;
+      // Strip code fences if any, then parse.
+      const raw = res.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+      const parsed = JSON.parse(raw);
+      output = MatchSchema.parse(parsed);
     } catch (err) {
-      console.error("AI match failed/timeout:", err);
+      console.error("AI match failed/timeout:", errorMessage(err), err);
       // Persist a graceful fallback so the row isn't left dangling.
       const fallback = fallbackMatch(submission.id);
       await supabaseAdmin
