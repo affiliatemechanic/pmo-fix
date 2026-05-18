@@ -294,6 +294,7 @@ function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<voi
       summary: editing.summary.trim(),
       description: editing.description.trim() || null,
       url: editing.url.trim() || null,
+      image_url: editing.image_url.trim() || null,
       categories: splitList(editing.categories),
       platforms: splitList(editing.platforms),
       tags: splitList(editing.tags),
