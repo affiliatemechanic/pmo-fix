@@ -1,0 +1,1 @@
+ALTER TABLE public.fixes ADD COLUMN image_url text;

@@ -37,6 +37,7 @@ type Fix = {
   summary: string;
   description: string | null;
   url: string | null;
+  image_url: string | null;
   categories: string[] | null;
   platforms: string[] | null;
   tags: string[] | null;
@@ -229,6 +230,7 @@ type FixDraft = {
   summary: string;
   description: string;
   url: string;
+  image_url: string;
   categories: string;
   platforms: string;
   tags: string;
@@ -242,6 +244,7 @@ const emptyDraft: FixDraft = {
   summary: "",
   description: "",
   url: "",
+  image_url: "",
   categories: "",
   platforms: "",
   tags: "",
@@ -257,6 +260,7 @@ function toDraft(f: Fix): FixDraft {
     summary: f.summary,
     description: f.description ?? "",
     url: f.url ?? "",
+    image_url: f.image_url ?? "",
     categories: (f.categories ?? []).join(", "),
     platforms: (f.platforms ?? []).join(", "),
     tags: (f.tags ?? []).join(", "),
@@ -290,6 +294,7 @@ function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<voi
       summary: editing.summary.trim(),
       description: editing.description.trim() || null,
       url: editing.url.trim() || null,
+      image_url: editing.image_url.trim() || null,
       categories: splitList(editing.categories),
       platforms: splitList(editing.platforms),
       tags: splitList(editing.tags),
@@ -461,6 +466,21 @@ function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<voi
                   value={editing.url}
                   onChange={(e) => setEditing({ ...editing, url: e.target.value })}
                 />
+              </Field>
+              <Field label="Image URL (logo or product image)">
+                <input
+                  className="input"
+                  value={editing.image_url}
+                  onChange={(e) => setEditing({ ...editing, image_url: e.target.value })}
+                  placeholder="https://…/logo.png"
+                />
+                {editing.image_url && (
+                  <img
+                    src={editing.image_url}
+                    alt="preview"
+                    className="mt-2 h-16 w-16 rounded-lg border border-border bg-secondary/30 object-contain p-1"
+                  />
+                )}
               </Field>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Categories (comma separated)">
