@@ -424,14 +424,14 @@ function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<voi
               {editing.id ? "Edit fix" : "Add fix"}
             </h2>
             <div className="mt-4 grid gap-4">
-              <Field label="Name">
+              <SubField label="Name">
                 <input
                   className="input"
                   value={editing.name}
                   onChange={(e) => setEditing({ ...editing, name: e.target.value })}
                 />
-              </Field>
-              <Field label="Type">
+              </SubField>
+              <SubField label="Type">
                 <div className="flex gap-2">
                   {FIX_TYPES.map((t) => (
                     <button
@@ -448,29 +448,29 @@ function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<voi
                     </button>
                   ))}
                 </div>
-              </Field>
-              <Field label="Summary (basic HTML: <br>, <b>, <i>, <a>, <ul>, <li>)">
+              </SubField>
+              <SubField label="Summary (basic HTML: <br>, <b>, <i>, <a>, <ul>, <li>)">
                 <textarea
                   className="input min-h-[60px]"
                   value={editing.summary}
                   onChange={(e) => setEditing({ ...editing, summary: e.target.value })}
                 />
-              </Field>
-              <Field label="Description (optional, same HTML tags allowed)">
+              </SubField>
+              <SubField label="Description (optional, same HTML tags allowed)">
                 <textarea
                   className="input min-h-[100px]"
                   value={editing.description}
                   onChange={(e) => setEditing({ ...editing, description: e.target.value })}
                 />
-              </Field>
-              <Field label="URL">
+              </SubField>
+              <SubField label="URL">
                 <input
                   className="input"
                   value={editing.url}
                   onChange={(e) => setEditing({ ...editing, url: e.target.value })}
                 />
-              </Field>
-              <Field label="Image URL (logo or product image)">
+              </SubField>
+              <SubField label="Image URL (logo or product image)">
                 <input
                   className="input"
                   value={editing.image_url}
@@ -484,9 +484,9 @@ function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<voi
                     className="mt-2 h-16 w-16 rounded-lg border border-border bg-secondary/30 object-contain p-1"
                   />
                 )}
-              </Field>
+              </SubField>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Categories (comma separated)">
+                <SubField label="Categories (comma separated)">
                   <input
                     className="input"
                     value={editing.categories}
@@ -495,8 +495,8 @@ function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<voi
                     }
                     placeholder="marketing, ops"
                   />
-                </Field>
-                <Field label="Platforms (comma separated)">
+                </SubField>
+                <SubField label="Platforms (comma separated)">
                   <input
                     className="input"
                     value={editing.platforms}
@@ -505,17 +505,17 @@ function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<voi
                     }
                     placeholder="wordpress, google-sheets"
                   />
-                </Field>
+                </SubField>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Tags">
+                <SubField label="Tags">
                   <input
                     className="input"
                     value={editing.tags}
                     onChange={(e) => setEditing({ ...editing, tags: e.target.value })}
                   />
-                </Field>
-                <Field label="Price note">
+                </SubField>
+                <SubField label="Price note">
                   <input
                     className="input"
                     value={editing.price_note}
@@ -524,7 +524,7 @@ function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<voi
                     }
                     placeholder="$49 one-time"
                   />
-                </Field>
+                </SubField>
               </div>
               <label className="flex items-center gap-2 text-sm text-cream">
                 <input
@@ -589,7 +589,7 @@ function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<voi
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function SubField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
       <span className="mb-1 block text-xs uppercase tracking-wider text-muted-foreground">
@@ -872,22 +872,22 @@ function SubmissionRow({
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-x-6 gap-y-2 md:grid-cols-2 text-sm">
-                <Field label="Description" full>
+                <SubField label="Description" full>
                   <p className="whitespace-pre-wrap text-cream">{s.description}</p>
-                </Field>
-                <Field label="Email"><span className="text-cream">{s.email ?? "—"}</span></Field>
-                <Field label="First name"><span className="text-cream">{s.first_name ?? "—"}</span></Field>
-                <Field label="Category"><span className="text-cream">{s.category ?? "—"}</span></Field>
-                <Field label="Work type"><span className="text-cream">{s.work_type ?? "—"}</span></Field>
-                <Field label="Frequency"><span className="text-cream">{s.frequency ?? "—"}</span></Field>
-                <Field label="Cost impact"><span className="text-cream">{s.cost_impact ?? "—"}</span></Field>
-                <Field label="Platforms"><span className="text-cream">{s.platforms?.join(", ") || "—"}</span></Field>
-                <Field label="Platforms (other)"><span className="text-cream">{s.platforms_other ?? "—"}</span></Field>
-                <Field label="Dream fix" full>
+                </SubField>
+                <SubField label="Email"><span className="text-cream">{s.email ?? "—"}</span></SubField>
+                <SubField label="First name"><span className="text-cream">{s.first_name ?? "—"}</span></SubField>
+                <SubField label="Category"><span className="text-cream">{s.category ?? "—"}</span></SubField>
+                <SubField label="Work type"><span className="text-cream">{s.work_type ?? "—"}</span></SubField>
+                <SubField label="Frequency"><span className="text-cream">{s.frequency ?? "—"}</span></SubField>
+                <SubField label="Cost impact"><span className="text-cream">{s.cost_impact ?? "—"}</span></SubField>
+                <SubField label="Platforms"><span className="text-cream">{s.platforms?.join(", ") || "—"}</span></SubField>
+                <SubField label="Platforms (other)"><span className="text-cream">{s.platforms_other ?? "—"}</span></SubField>
+                <SubField label="Dream fix" full>
                   <p className="whitespace-pre-wrap text-cream">{s.dream_fix ?? "—"}</p>
-                </Field>
-                <Field label="User"><span className="text-muted-foreground">{s.user_id ?? "Anonymous"}</span></Field>
-                <Field label="Submission ID"><span className="font-mono text-xs text-muted-foreground">{s.id}</span></Field>
+                </SubField>
+                <SubField label="User"><span className="text-muted-foreground">{s.user_id ?? "Anonymous"}</span></SubField>
+                <SubField label="Submission ID"><span className="font-mono text-xs text-muted-foreground">{s.id}</span></SubField>
               </div>
             )}
           </section>
@@ -949,7 +949,7 @@ function SubmissionRow({
   );
 }
 
-function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
+function SubField({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
   return (
     <div className={full ? "md:col-span-2" : ""}>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
