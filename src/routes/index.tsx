@@ -1,9 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import logo from "@/assets/pmofix-logo.png";
 import { supabase } from "@/integrations/supabase/client";
-import { submitAndMatch, type MatchResult } from "@/lib/match.functions";
+import type { MatchResult } from "@/lib/match.functions";
 import { getKnownExternalRecommendation } from "@/lib/match-rules";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
@@ -159,7 +158,6 @@ function Index() {
   const [saving, setSaving] = useState(false);
   const [loadingLine, setLoadingLine] = useState(0);
   const [match, setMatch] = useState<MatchResult | null>(null);
-  const runMatch = useServerFn(submitAndMatch);
 
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
