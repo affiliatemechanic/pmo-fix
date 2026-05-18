@@ -241,8 +241,11 @@ Pick the best match or declare a gap.`;
     const matchedFix = matchedFixId
       ? catalog.find((c) => c.id === matchedFixId) ?? null
       : null;
+    const hasExternal = !!output.external_recommendation?.name;
     const verdict =
-      !matchedFix && output.verdict !== "gap" ? "gap" : output.verdict;
+      !matchedFix && !hasExternal && output.verdict !== "gap"
+        ? "gap"
+        : output.verdict;
 
     const result: MatchResult = {
       ...output,
