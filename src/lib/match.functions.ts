@@ -450,47 +450,104 @@ Pick the best match or declare a gap.`;
       .update({ match_result: result, matched_at: new Date().toISOString() })
       .eq("id", submission.id);
 
-    // Send result email — fire-and-forget, with a hard timeout so it can NEVER
-    // block the response to the user. Failures are logged, not thrown.
+    // Queue the result email directly. Calling our own HTTP route from a server
+    // function is unreliable in the live worker runtime, so keep this in-process.
     try {
-      const origin = getRequestUrl().origin;
-      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-      const emailRes = await fetch(`${origin}/lovable/email/transactional/send`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceKey}`,
-        },
-        body: JSON.stringify({
-          templateName: "match-result",
-          recipientEmail: submission.email,
-          idempotencyKey: `match-result-${submission.id}`,
-          templateData: {
-            firstName: submission.first_name ?? undefined,
-            verdict: result.verdict,
-            headline: result.headline,
-            reasoning: result.reasoning,
-            nextSteps: result.next_steps,
-            matchedFix: matchedFix
+      const normalizedEmail = submission.email.toLowerCase();
+      const messageId = crypto.randomUUID();
+      const idempotencyKey = `match-result-${submission.id}`;
+      const { data: suppressed, error: suppressionError } = await supabaseAdmin
+        .from("suppressed_emails")
+        .select("id")
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+      if (suppressionError) throw suppressionError;
+
+      if (suppressed) {
+        await supabaseAdmin.from("email_send_log").insert({
+          message_id: messageId,
+          template_name: "match-result",
+          recipient_email: submission.email,
+          status: "suppressed",
+        });
+      } else {
+        const { data: existingToken, error: tokenLookupError } = await supabaseAdmin
+          .from("email_unsubscribe_tokens")
+          .select("token, used_at")
+          .eq("email", normalizedEmail)
+          .maybeSingle();
+        if (tokenLookupError) throw tokenLookupError;
+
+        let unsubscribeToken = existingToken && !existingToken.used_at ? existingToken.token : null;
+        if (!unsubscribeToken) {
+          unsubscribeToken = generateEmailToken();
+          const { error: tokenError } = await supabaseAdmin
+            .from("email_unsubscribe_tokens")
+            .upsert({ token: unsubscribeToken, email: normalizedEmail }, { onConflict: "email", ignoreDuplicates: true });
+          if (tokenError) throw tokenError;
+          const { data: storedToken, error: reReadError } = await supabaseAdmin
+            .from("email_unsubscribe_tokens")
+            .select("token")
+            .eq("email", normalizedEmail)
+            .maybeSingle();
+          if (reReadError || !storedToken) throw reReadError ?? new Error("Missing unsubscribe token");
+          unsubscribeToken = storedToken.token;
+        }
+
+        const templateData = {
+          firstName: submission.first_name ?? undefined,
+          verdict: result.verdict,
+          headline: result.headline,
+          reasoning: result.reasoning,
+          nextSteps: result.next_steps,
+          matchedFix: matchedFix
+            ? {
+                name: matchedFix.name,
+                summary: matchedFix.summary,
+                url: matchedFix.url || undefined,
+                price_note: matchedFix.price_note || undefined,
+              }
+            : result.external_recommendation?.name
               ? {
-                  name: matchedFix.name,
-                  summary: matchedFix.summary,
-                  url: matchedFix.url || undefined,
-                  price_note: matchedFix.price_note || undefined,
+                  name: result.external_recommendation.name,
+                  summary: result.external_recommendation.why || "This is the closest practical recommendation for the PMO you described.",
+                  url: result.external_recommendation.url || undefined,
                 }
               : null,
-            problemPreview:
-              submission.description.length > 240
-                ? submission.description.slice(0, 237) + "..."
-                : submission.description,
+          problemPreview: submission.description.length > 240 ? submission.description.slice(0, 237) + "..." : submission.description,
+        };
+        const element = React.createElement(matchResultEmailTemplate.component, templateData);
+        const html = await render(element);
+        const text = await render(element, { plainText: true });
+        const subject =
+          typeof matchResultEmailTemplate.subject === "function"
+            ? matchResultEmailTemplate.subject(templateData)
+            : matchResultEmailTemplate.subject;
+
+        await supabaseAdmin.from("email_send_log").insert({
+          message_id: messageId,
+          template_name: "match-result",
+          recipient_email: submission.email,
+          status: "pending",
+        });
+        const { error: enqueueError } = await supabaseAdmin.rpc("enqueue_email", {
+          queue_name: "transactional_emails",
+          payload: {
+            message_id: messageId,
+            to: submission.email,
+            from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+            sender_domain: SENDER_DOMAIN,
+            subject,
+            html,
+            text,
+            purpose: "transactional",
+            label: "match-result",
+            idempotency_key: idempotencyKey,
+            unsubscribe_token: unsubscribeToken,
+            queued_at: new Date().toISOString(),
           },
-        }),
-        signal: AbortSignal.timeout(15_000),
-      });
-      if (!emailRes.ok) {
-        const txt = await emailRes.text().catch(() => "");
-        console.error("Match result email send failed", emailRes.status, txt);
-      } else {
+        });
+        if (enqueueError) throw enqueueError;
         console.log("Match result email enqueued for", submission.email);
       }
     } catch (err) {
