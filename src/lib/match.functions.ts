@@ -479,6 +479,16 @@ Pick the best match or declare a gap.`;
           .eq("email", normalizedEmail)
           .maybeSingle();
         if (tokenLookupError) throw tokenLookupError;
+        if (existingToken?.used_at) {
+          await supabaseAdmin.from("email_send_log").insert({
+            message_id: messageId,
+            template_name: "match-result",
+            recipient_email: recipientEmail,
+            status: "suppressed",
+            error_message: "Unsubscribe token already used",
+          });
+          return result;
+        }
 
         let unsubscribeToken = existingToken && !existingToken.used_at ? existingToken.token : null;
         if (!unsubscribeToken) {
@@ -549,7 +559,16 @@ Pick the best match or declare a gap.`;
             queued_at: new Date().toISOString(),
           },
         });
-        if (enqueueError) throw enqueueError;
+        if (enqueueError) {
+          await supabaseAdmin.from("email_send_log").insert({
+            message_id: messageId,
+            template_name: "match-result",
+            recipient_email: recipientEmail,
+            status: "failed",
+            error_message: "Failed to enqueue email",
+          });
+          throw enqueueError;
+        }
         console.log("Match result email enqueued for", submission.email);
       }
     } catch (err) {
