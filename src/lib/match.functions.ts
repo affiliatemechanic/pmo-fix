@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestUrl } from "@tanstack/react-start/server";
-import { generateObject } from "ai";
+import { generateObject, generateText } from "ai";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { createLovableAiGatewayProvider } from "./ai-gateway";
@@ -20,21 +20,23 @@ const SubmissionInputSchema = z.object({
   user_id: z.string().uuid().nullable().optional(),
 });
 
+// NOTE: keep schema permissive — Gemini's structured output frequently
+// violates min/max/.nullable() unions, causing "response did not match schema"
+// failures. We normalize/clamp the values ourselves after parsing.
 const MatchSchema = z.object({
   verdict: z.enum(["match", "recommended", "gap"]),
-  confidence: z.enum(["low", "medium", "high"]),
-  matched_fix_id: z.string().nullable(),
+  confidence: z.enum(["low", "medium", "high"]).optional(),
+  matched_fix_id: z.string().nullish(),
   external_recommendation: z
     .object({
-      name: z.string().min(1).max(120),
-      url: z.string().max(500).nullable().optional(),
-      why: z.string().min(1).max(600),
+      name: z.string().optional(),
+      url: z.string().nullish(),
+      why: z.string().optional(),
     })
-    .nullable()
-    .optional(),
-  headline: z.string().min(1).max(200),
-  reasoning: z.string().min(1).max(2000),
-  next_steps: z.array(z.string().min(1).max(400)).min(1).max(5),
+    .nullish(),
+  headline: z.string(),
+  reasoning: z.string(),
+  next_steps: z.array(z.string()),
 });
 
 export type MatchResult = z.infer<typeof MatchSchema> & {
@@ -183,7 +185,7 @@ async function runSubmitAndMatch(
 
     // 3. Ask the AI to match
     const gateway = createLovableAiGatewayProvider(apiKey);
-    const model = gateway("google/gemini-3-flash-preview");
+    const model = gateway("google/gemini-2.5-flash");
 
     const system = `You are the PMOfix matching engine. PMO = "Pisses Me Off" — a user-reported workflow problem.
 Your job: get the user a real solution as fast as possible. In priority order:
@@ -194,11 +196,22 @@ Your job: get the user a real solution as fast as possible. In priority order:
 4. GAP — if nothing internal AND no good external tool genuinely solves this, verdict = "gap", matched_fix_id = null, external_recommendation = null. This is a great outcome — it's a build candidate for us. Be honest; don't force a recommendation.
 
 Other rules:
-- headline: punchy 1-line verdict in PMOfix voice (direct, slightly irreverent, no fluff, no emoji spam).
+- headline: punchy 1-line verdict in PMOfix voice (direct, slightly irreverent, no fluff, no emoji spam). Max 200 chars.
 - reasoning: 2-4 sentences explaining the match (or gap), referencing the user's actual problem.
 - next_steps: 2-4 short, concrete actions. For external recs, include trying the tool. For gaps, say something like "We're flagging this as a build candidate — we may build it."
 - Never invent internal fixes. Never use a matched_fix_id that isn't in the catalog.
-- Don't recommend an external tool you're not sure about. "Gap" beats a bad recommendation.`;
+- Don't recommend an external tool you're not sure about. "Gap" beats a bad recommendation.
+
+Return ONLY a JSON object with this exact shape (no markdown, no commentary):
+{
+  "verdict": "match" | "recommended" | "gap",
+  "confidence": "low" | "medium" | "high",
+  "matched_fix_id": string | null,
+  "external_recommendation": { "name": string, "url": string | null, "why": string } | null,
+  "headline": string,
+  "reasoning": string,
+  "next_steps": [string, ...]
+}`;
 
     const userPrompt = `USER SUBMISSION:
 Problem: ${submission.description}
@@ -218,6 +231,7 @@ Pick the best match or declare a gap.`;
     const aiAbort = AbortSignal.timeout(45_000);
     let output: z.infer<typeof MatchSchema>;
     try {
+      // Try structured output first.
       const res = await generateObject({
         model,
         schema: MatchSchema,
@@ -226,21 +240,46 @@ Pick the best match or declare a gap.`;
         abortSignal: aiAbort,
       });
       output = res.object;
-    } catch (err) {
-      const msg = errorMessage(err);
-      console.error("AI match failed/timeout:", msg, err);
-      // Persist a graceful fallback so the row isn't left dangling. Stash the
-      // real error message in reasoning so we can see it without log hunting.
-      const fallback: MatchResult = {
-        ...fallbackMatch(submission.id),
-        reasoning:
-          fallbackMatch(submission.id).reasoning + ` (debug: ${msg.slice(0, 300)})`,
-      };
-      await supabaseAdmin
-        .from("pmo_submissions")
-        .update({ match_result: fallback, matched_at: new Date().toISOString() })
-        .eq("id", submission.id);
-      return fallback;
+    } catch (structErr) {
+      // Schema or provider error — retry with plain text + manual JSON parse.
+      // Gemini's structured-output mode is brittle; freeform JSON is far more
+      // reliable as long as we extract and validate ourselves.
+      console.error("generateObject failed, falling back to generateText:", errorMessage(structErr));
+      try {
+        const textRes = await generateText({
+          model,
+          system,
+          prompt: userPrompt,
+          abortSignal: aiAbort,
+        });
+        const raw = textRes.text.trim();
+        // Strip ```json fences if present
+        const cleaned = raw
+          .replace(/^```(?:json)?\s*/i, "")
+          .replace(/\s*```$/, "")
+          .trim();
+        // Grab the largest {...} block to be safe
+        const firstBrace = cleaned.indexOf("{");
+        const lastBrace = cleaned.lastIndexOf("}");
+        const jsonStr = firstBrace >= 0 && lastBrace > firstBrace
+          ? cleaned.slice(firstBrace, lastBrace + 1)
+          : cleaned;
+        const parsed = JSON.parse(jsonStr);
+        output = MatchSchema.parse(parsed);
+      } catch (textErr) {
+        const msg = errorMessage(textErr);
+        console.error("AI match failed (text fallback also failed):", msg, textErr);
+        const fallback: MatchResult = {
+          ...fallbackMatch(submission.id),
+          reasoning:
+            fallbackMatch(submission.id).reasoning + ` (debug: ${msg.slice(0, 300)})`,
+        };
+        await supabaseAdmin
+          .from("pmo_submissions")
+          .update({ match_result: fallback, matched_at: new Date().toISOString() })
+          .eq("id", submission.id);
+        return fallback;
+      }
     }
 
     // Validate matched_fix_id actually exists in catalog
