@@ -183,7 +183,7 @@ async function runSubmitAndMatch(
 
     // 3. Ask the AI to match
     const gateway = createLovableAiGatewayProvider(apiKey);
-    const model = gateway("google/gemini-2.5-flash");
+    const model = gateway("google/gemini-3-flash-preview");
 
     const system = `You are the PMOfix matching engine. PMO = "Pisses Me Off" — a user-reported workflow problem.
 Your job: get the user a real solution as fast as possible. In priority order:
