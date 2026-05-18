@@ -176,11 +176,12 @@ Pick the best match or declare a gap.`;
       .update({ match_result: result, matched_at: new Date().toISOString() })
       .eq("id", submission.id);
 
-    // Send result email (fire-and-forget — never fail the submission on email errors)
+    // Send result email — fire-and-forget, with a hard timeout so it can NEVER
+    // block the response to the user. Failures are logged, not thrown.
     try {
       const origin = getRequestUrl().origin;
       const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-      await fetch(`${origin}/lovable/email/transactional/send`, {
+      void fetch(`${origin}/lovable/email/transactional/send`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -210,9 +211,10 @@ Pick the best match or declare a gap.`;
                 : submission.description,
           },
         }),
-      });
+        signal: AbortSignal.timeout(10_000),
+      }).catch((err) => console.error("Failed to send match result email", err));
     } catch (err) {
-      console.error("Failed to send match result email", err);
+      console.error("Failed to dispatch match result email", err);
     }
 
     return result;
