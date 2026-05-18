@@ -6,6 +6,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { createLovableAiGatewayProvider } from "./ai-gateway";
 
 const SubmissionInputSchema = z.object({
+  id: z.string().uuid().optional(),
   description: z.string().min(5).max(5000),
   email: z.string().email().max(255),
   category: z.string().max(100).nullable().optional(),
@@ -78,22 +79,25 @@ export const submitAndMatch = createServerFn({ method: "POST" })
     if (!apiKey) throw new Error("Missing LOVABLE_API_KEY");
 
     // 1. Insert submission with admin client (bypasses RLS, returns id)
+    const submissionPayload = {
+      ...(data.id ? { id: data.id } : {}),
+      description: data.description.trim(),
+      email: data.email.trim(),
+      category: data.category ?? null,
+      platforms: data.platforms?.length ? data.platforms : null,
+      platforms_other: data.platforms_other?.trim() || null,
+      frequency: data.frequency ?? null,
+      cost_impact: data.cost_impact ?? null,
+      dream_fix: data.dream_fix?.trim() || null,
+      first_name: data.first_name?.trim() || null,
+      work_type: data.work_type ?? null,
+      user_id: data.user_id ?? null,
+    };
+
     const { data: submission, error: insErr } = await withTimeout(
       supabaseAdmin
         .from("pmo_submissions")
-        .insert({
-          description: data.description.trim(),
-          email: data.email.trim(),
-          category: data.category ?? null,
-          platforms: data.platforms?.length ? data.platforms : null,
-          platforms_other: data.platforms_other?.trim() || null,
-          frequency: data.frequency ?? null,
-          cost_impact: data.cost_impact ?? null,
-          dream_fix: data.dream_fix?.trim() || null,
-          first_name: data.first_name?.trim() || null,
-          work_type: data.work_type ?? null,
-          user_id: data.user_id ?? null,
-        })
+        .upsert(submissionPayload, { onConflict: "id" })
         .select()
         .single(),
       10_000,
