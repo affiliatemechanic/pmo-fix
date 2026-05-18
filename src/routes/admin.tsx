@@ -29,6 +29,24 @@ type Submission = {
   category: string | null;
   email: string | null;
   created_at: string;
+  platforms: string[] | null;
+  platforms_other: string | null;
+  frequency: string | null;
+  cost_impact: string | null;
+  dream_fix: string | null;
+  first_name: string | null;
+  work_type: string | null;
+  match_result: any | null;
+  matched_at: string | null;
+};
+
+type EmailLogRow = {
+  id: string;
+  message_id: string | null;
+  recipient_email: string;
+  status: string;
+  error_message: string | null;
+  created_at: string;
 };
 
 type Fix = {
