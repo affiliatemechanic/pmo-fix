@@ -8,18 +8,6 @@ import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 import { FixCard } from "@/components/FixCard";
 
-function isSystemFallbackMatch(match: MatchResult): boolean {
-  return (
-    match.verdict === "gap" &&
-    match.confidence === "low" &&
-    !match.matched_fix_id &&
-    (match.headline.includes("match this manually") ||
-      match.headline.includes("couldn't auto-match") ||
-      match.reasoning.includes("matching engine took too long") ||
-      match.reasoning.includes("automatic matcher is taking too long"))
-  );
-}
-
 function clientFallbackMatch(submissionId: string): MatchResult {
   return {
     verdict: "gap",
