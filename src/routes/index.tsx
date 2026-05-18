@@ -213,9 +213,29 @@ function Index() {
 
     setMatch(null);
     setSaving(true);
+
+    // Defensive: if the Supabase session is stuck refreshing (seen in Chrome
+    // with a stale token), the global auth-attacher middleware will hang
+    // forever on getSession() and the serverFn POST never fires. Race it
+    // with a short timeout and clear the local session if it stalls.
     try {
-      const result = await runMatch({ data: submissionPayload });
-      setMatch(result);
+      await Promise.race([
+        supabase.auth.getSession(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("session-timeout")), 2500)),
+      ]);
+    } catch {
+      console.warn("Supabase getSession hung — clearing local session.");
+      try { await supabase.auth.signOut({ scope: "local" } as any); } catch {}
+    }
+
+    try {
+      const result = await Promise.race([
+        runMatch({ data: submissionPayload }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("match-timeout")), 25000),
+        ),
+      ]);
+      setMatch(result as MatchResult);
     } catch (err) {
       console.warn("Match failed; showing fallback view:", err);
       setMatch(clientFallbackMatch(submissionId, [pmo, category, platforms.join(" "), platformsOther, dreamFix]));
