@@ -211,34 +211,13 @@ function AdminPage() {
         )}
 
         {tab === "submissions" && (
-          <div className="mt-6 space-y-3">
-            {submissions.map((s) => (
-              <div key={s.id} className="rounded-xl border border-border bg-card p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="text-xs uppercase tracking-wider text-gold">
-                    {s.category ?? "Uncategorized"}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {new Date(s.created_at).toLocaleString()}
-                  </div>
-                </div>
-                <p className="mt-3 whitespace-pre-wrap text-cream">{s.description}</p>
-                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                  {s.email && (
-                    <a href={`mailto:${s.email}`} className="text-gold hover:underline">
-                      {s.email}
-                    </a>
-                  )}
-                  <span>{s.user_id ? `User: ${s.user_id.slice(0, 8)}…` : "Anonymous"}</span>
-                </div>
-              </div>
-            ))}
-            {submissions.length === 0 && (
-              <div className="rounded-xl border border-border p-8 text-center text-muted-foreground">
-                No submissions yet.
-              </div>
-            )}
-          </div>
+          <SubmissionsPanel
+            submissions={submissions}
+            emailLogs={emailLogs}
+            onUpdated={(updated) =>
+              setSubmissions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+            }
+          />
         )}
 
         {tab === "fixes" && <FixesPanel fixes={fixes} reload={loadFixes} />}
