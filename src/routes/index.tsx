@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { submitAndMatch, type MatchResult } from "@/lib/match.functions";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
+import { FixCard } from "@/components/FixCard";
 
 function isSystemFallbackMatch(match: MatchResult): boolean {
   return (
@@ -745,37 +746,8 @@ function PostSubmit({
       )}
 
       {match?.matched_fix && (
-        <div className="mt-6 rounded-xl border border-gold/40 bg-gold/5 p-6">
-          <div className="flex items-start gap-4">
-            {match.matched_fix.image_url && (
-              <img
-                src={match.matched_fix.image_url}
-                alt={`${match.matched_fix.name} logo`}
-                loading="lazy"
-                className="h-16 w-16 shrink-0 rounded-lg border border-gold/30 bg-background object-contain p-1"
-              />
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="text-xs uppercase tracking-[0.2em] text-gold">
-                {match.matched_fix.type.replace(/_/g, " ")}
-              </div>
-              <h3 className="mt-2 text-2xl font-bold text-cream">{match.matched_fix.name}</h3>
-              <p className="mt-2 text-muted-foreground">{match.matched_fix.summary}</p>
-              {match.matched_fix.price_note && (
-                <div className="mt-3 text-sm text-gold/80">{match.matched_fix.price_note}</div>
-              )}
-              {match.matched_fix.url && (
-                <a
-                  href={match.matched_fix.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-4 inline-flex items-center justify-center rounded-lg bg-gold px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-gold-foreground transition hover:brightness-110"
-                >
-                  Get this fix →
-                </a>
-              )}
-            </div>
-          </div>
+        <div className="mt-6">
+          <FixCard fix={match.matched_fix} detailsHref={`/fixes/${match.matched_fix.id}`} />
         </div>
       )}
 
@@ -819,7 +791,7 @@ function PostSubmit({
         </p>
       )}
 
-      <div className="mt-8 flex items-center gap-6">
+      <div className="mt-8 flex flex-wrap items-center gap-6">
         <button
           onClick={onReset}
           className="text-sm uppercase tracking-wider text-gold hover:underline"
@@ -827,7 +799,7 @@ function PostSubmit({
           ← Submit another PMO
         </button>
         <span className="text-xs text-muted-foreground">
-          A copy is on its way to your inbox.
+          We'll also email you a copy so you can find it later.
         </span>
       </div>
     </div>

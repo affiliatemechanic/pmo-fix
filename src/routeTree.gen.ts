@@ -18,6 +18,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AcceptableUseRouteImport } from './routes/acceptable-use'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as FixesIdRouteImport } from './routes/fixes.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AdminAweberRouteImport } from './routes/admin_.aweber'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
@@ -72,6 +73,11 @@ const AcceptableUseRoute = AcceptableUseRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FixesIdRoute = FixesIdRouteImport.update({
+  id: '/fixes/$id',
+  path: '/fixes/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/unsubscribe': typeof UnsubscribeRoute
   '/admin/aweber': typeof AdminAweberRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/fixes/$id': typeof FixesIdRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/aweber/oauth': typeof ApiPublicAweberOauthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByTo {
   '/unsubscribe': typeof UnsubscribeRoute
   '/admin/aweber': typeof AdminAweberRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/fixes/$id': typeof FixesIdRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/aweber/oauth': typeof ApiPublicAweberOauthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -184,6 +192,7 @@ export interface FileRoutesById {
   '/unsubscribe': typeof UnsubscribeRoute
   '/admin_/aweber': typeof AdminAweberRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/fixes/$id': typeof FixesIdRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/aweber/oauth': typeof ApiPublicAweberOauthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/unsubscribe'
     | '/admin/aweber'
     | '/email/unsubscribe'
+    | '/fixes/$id'
     | '/lovable/email/suppression'
     | '/api/public/aweber/oauth'
     | '/api/public/payments/webhook'
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/unsubscribe'
     | '/admin/aweber'
     | '/email/unsubscribe'
+    | '/fixes/$id'
     | '/lovable/email/suppression'
     | '/api/public/aweber/oauth'
     | '/api/public/payments/webhook'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/unsubscribe'
     | '/admin_/aweber'
     | '/email/unsubscribe'
+    | '/fixes/$id'
     | '/lovable/email/suppression'
     | '/api/public/aweber/oauth'
     | '/api/public/payments/webhook'
@@ -271,6 +283,7 @@ export interface RootRouteChildren {
   UnsubscribeRoute: typeof UnsubscribeRoute
   AdminAweberRoute: typeof AdminAweberRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  FixesIdRoute: typeof FixesIdRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicAweberOauthRoute: typeof ApiPublicAweberOauthRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -344,6 +357,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fixes/$id': {
+      id: '/fixes/$id'
+      path: '/fixes/$id'
+      fullPath: '/fixes/$id'
+      preLoaderRoute: typeof FixesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/email/unsubscribe': {
@@ -431,6 +451,7 @@ const rootRouteChildren: RootRouteChildren = {
   UnsubscribeRoute: UnsubscribeRoute,
   AdminAweberRoute: AdminAweberRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  FixesIdRoute: FixesIdRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicAweberOauthRoute: ApiPublicAweberOauthRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
