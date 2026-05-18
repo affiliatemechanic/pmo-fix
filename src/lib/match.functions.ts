@@ -441,7 +441,7 @@ Pick the best match or declare a gap.`;
     try {
       const origin = getRequestUrl().origin;
       const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-      void fetch(`${origin}/lovable/email/transactional/send`, {
+      const emailRes = await fetch(`${origin}/lovable/email/transactional/send`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -471,8 +471,14 @@ Pick the best match or declare a gap.`;
                 : submission.description,
           },
         }),
-        signal: AbortSignal.timeout(10_000),
-      }).catch((err) => console.error("Failed to send match result email", err));
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!emailRes.ok) {
+        const txt = await emailRes.text().catch(() => "");
+        console.error("Match result email send failed", emailRes.status, txt);
+      } else {
+        console.log("Match result email enqueued for", submission.email);
+      }
     } catch (err) {
       console.error("Failed to dispatch match result email", err);
     }
