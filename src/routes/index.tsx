@@ -46,13 +46,6 @@ function clientFallbackMatch(submissionId: string, parts: Array<string | null | 
   };
 }
 
-function withClientTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T | null> {
-  return Promise.race([
-    promise,
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
-  ]);
-}
-
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
@@ -221,18 +214,8 @@ function Index() {
     setMatch(null);
     setSaving(true);
     try {
-      void withClientTimeout(supabase.from("pmo_submissions").insert(submissionPayload), 3_000).then((res) => {
-        if (res?.error && res.error.code !== "23505") {
-          console.warn("Client-side submission save failed; server matcher will retry:", res.error);
-        }
-      });
-
-      // Hard client-side cap so the spinner can never hang on a stuck worker.
-      const result = await Promise.race<MatchResult | null>([
-        runMatch({ data: submissionPayload }),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 45_000)),
-      ]);
-      setMatch(result ?? clientFallbackMatch(submissionId, [pmo, category, platforms.join(" "), platformsOther, dreamFix]));
+      const result = await runMatch({ data: submissionPayload });
+      setMatch(result);
     } catch (err) {
       console.warn("Match failed; showing fallback view:", err);
       setMatch(clientFallbackMatch(submissionId, [pmo, category, platforms.join(" "), platformsOther, dreamFix]));
@@ -522,13 +505,13 @@ function Index() {
                       >
                         ← Back
                       </button>
-                      <button
+      <button
                         type="button"
                         onClick={submit}
-                        disabled={!canSubmit}
+        disabled={!canSubmit || saving}
                         className="inline-flex items-center justify-center rounded-lg bg-gold px-6 py-4 text-base font-bold uppercase tracking-wide text-gold-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        Find My Fix →
+        {saving ? "Finding..." : "Find My Fix →"}
                       </button>
                     </div>
                     <p className="text-xs text-muted-foreground italic">
