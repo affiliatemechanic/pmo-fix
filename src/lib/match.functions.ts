@@ -120,12 +120,37 @@ ${catalog.length === 0 ? "(empty — no fixes in catalog yet, so verdict MUST be
 
 Pick the best match or declare a gap.`;
 
-    const { experimental_output: output } = await generateText({
-      model,
-      system,
-      prompt: userPrompt,
-      experimental_output: Output.object({ schema: MatchSchema }),
-    });
+    const aiAbort = AbortSignal.timeout(45_000);
+    let output: z.infer<typeof MatchSchema>;
+    try {
+      const res = await generateText({
+        model,
+        system,
+        prompt: userPrompt,
+        experimental_output: Output.object({ schema: MatchSchema }),
+        abortSignal: aiAbort,
+      });
+      output = res.experimental_output;
+    } catch (err) {
+      console.error("AI match failed/timeout:", err);
+      // Persist a graceful fallback so the row isn't left dangling.
+      const fallback: MatchResult = {
+        verdict: "gap",
+        confidence: "low",
+        matched_fix_id: null,
+        matched_fix: null,
+        headline: "We couldn't auto-match this one — we'll follow up.",
+        reasoning:
+          "Our matching engine timed out on this submission. Your PMO has been saved and we'll review it manually.",
+        next_steps: ["We've logged this as a build candidate.", "Watch your inbox for a follow-up."],
+        submission_id: submission.id,
+      };
+      await supabaseAdmin
+        .from("pmo_submissions")
+        .update({ match_result: fallback, matched_at: new Date().toISOString() })
+        .eq("id", submission.id);
+      return fallback;
+    }
 
     // Validate matched_fix_id actually exists in catalog
     let matchedFixId = output.matched_fix_id;
