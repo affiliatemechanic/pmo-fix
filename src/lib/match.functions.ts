@@ -171,7 +171,7 @@ async function runSubmitAndMatch(
 
     // 3. Ask the AI to match
     const gateway = createLovableAiGatewayProvider(apiKey);
-    const model = gateway("google/gemini-3-flash-preview");
+    const model = gateway("google/gemini-2.5-flash");
 
     const system = `You are the PMOfix matching engine. PMO = "Pisses Me Off" — a user-reported workflow problem.
 You receive a user's PMO submission and a catalog of known fixes (internal products, recommended tools, affiliate offers).
