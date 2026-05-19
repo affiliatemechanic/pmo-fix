@@ -9,18 +9,37 @@ import type { User } from "@supabase/supabase-js";
 import { FixCard } from "@/components/FixCard";
 import { UserMenu } from "@/components/UserMenu";
 
-async function submitMatchViaApi(payload: Record<string, unknown>): Promise<MatchResult> {
-  const response = await fetch("/api/public/match", {
+async function postJson<T = unknown>(url: string, body: Record<string, unknown>): Promise<T> {
+  const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
-  const body = await response.json().catch(() => null);
+  const json = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(body?.error || `Match request failed with ${response.status}`);
+    throw new Error(json?.error || `Request failed with ${response.status}`);
   }
-  return body as MatchResult;
+  return json as T;
 }
+
+async function saveDraft(payload: Record<string, unknown>): Promise<{ id: string }> {
+  return postJson<{ id: string }>("/api/public/match/draft", payload);
+}
+
+function triggerPrematch(id: string): void {
+  // Fire-and-forget — runs the AI match in the background while the user
+  // finishes the funnel. Failures are non-fatal; finalize will re-run if needed.
+  void fetch("/api/public/match/prematch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  }).catch(() => {});
+}
+
+async function finalizeMatch(payload: Record<string, unknown>): Promise<MatchResult> {
+  return postJson<MatchResult>("/api/public/match/finalize", payload);
+}
+
 
 function clientFallbackMatch(submissionId: string, parts: Array<string | null | undefined> = []): MatchResult {
   const knownExternal = getKnownExternalRecommendation(parts);
