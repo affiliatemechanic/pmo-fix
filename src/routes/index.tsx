@@ -9,18 +9,37 @@ import type { User } from "@supabase/supabase-js";
 import { FixCard } from "@/components/FixCard";
 import { UserMenu } from "@/components/UserMenu";
 
-async function submitMatchViaApi(payload: Record<string, unknown>): Promise<MatchResult> {
-  const response = await fetch("/api/public/match", {
+async function postJson<T = unknown>(url: string, body: Record<string, unknown>): Promise<T> {
+  const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
-  const body = await response.json().catch(() => null);
+  const json = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(body?.error || `Match request failed with ${response.status}`);
+    throw new Error(json?.error || `Request failed with ${response.status}`);
   }
-  return body as MatchResult;
+  return json as T;
 }
+
+async function saveDraft(payload: Record<string, unknown>): Promise<{ id: string }> {
+  return postJson<{ id: string }>("/api/public/match/draft", payload);
+}
+
+function triggerPrematch(id: string): void {
+  // Fire-and-forget — runs the AI match in the background while the user
+  // finishes the funnel. Failures are non-fatal; finalize will re-run if needed.
+  void fetch("/api/public/match/prematch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  }).catch(() => {});
+}
+
+async function finalizeMatch(payload: Record<string, unknown>): Promise<MatchResult> {
+  return postJson<MatchResult>("/api/public/match/finalize", payload);
+}
+
 
 function clientFallbackMatch(submissionId: string, parts: Array<string | null | undefined> = []): MatchResult {
   const knownExternal = getKnownExternalRecommendation(parts);
@@ -157,8 +176,10 @@ function Index() {
 
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingStep, setSavingStep] = useState(false);
   const [loadingLine, setLoadingLine] = useState(0);
   const [match, setMatch] = useState<MatchResult | null>(null);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
 
   const [user, setUser] = useState<User | null>(null);
 
@@ -182,10 +203,65 @@ function Index() {
     return () => clearInterval(id);
   }, [saving]);
 
-
-
   const togglePlatform = (p: string) =>
     setPlatforms((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
+
+  // Step 1 → save description + category, get back an id we'll reuse for the rest.
+  const goToStep2 = async () => {
+    setSavingStep(true);
+    try {
+      const { id } = await saveDraft({
+        id: submissionId ?? undefined,
+        description: pmo.trim(),
+        category,
+        user_id: user?.id ?? null,
+      });
+      setSubmissionId(id);
+      setStep(2);
+    } catch (err) {
+      console.warn("Draft save failed (continuing):", err);
+      setStep(2); // non-fatal — finalize will upsert everything anyway
+    } finally {
+      setSavingStep(false);
+    }
+  };
+
+  // Step 2 → save platforms + kick off background AI match.
+  const goToStep3 = async () => {
+    if (submissionId) {
+      saveDraft({
+        id: submissionId,
+        platforms: platforms.length ? platforms : null,
+        platforms_other: platformsOther.trim() || null,
+      })
+        .then(() => triggerPrematch(submissionId))
+        .catch((err) => console.warn("Step 2 save failed:", err));
+    }
+    setStep(3);
+  };
+
+  // Step 3 → save frequency + cost.
+  const goToStep4 = () => {
+    if (submissionId) {
+      saveDraft({
+        id: submissionId,
+        frequency,
+        cost_impact: cost,
+      }).catch((err) => console.warn("Step 3 save failed:", err));
+    }
+    setStep(4);
+  };
+
+  // Step 4 → save dream_fix (this invalidates the prematch cache server-side).
+  const goToStep5 = () => {
+    if (submissionId) {
+      saveDraft({
+        id: submissionId,
+        dream_fix: dreamFix.trim() || null,
+      }).catch((err) => console.warn("Step 4 save failed:", err));
+    }
+    setStep(5);
+  };
 
   const submit = async () => {
     const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
@@ -193,17 +269,33 @@ function Index() {
       toast.error("Please enter a valid email so we can send your fix.");
       return;
     }
-    const submissionId = crypto.randomUUID();
-    const submissionPayload = {
-      id: submissionId,
+
+    // If something went wrong with Step 1's draft save, recover by inserting now.
+    let id = submissionId;
+    if (!id) {
+      try {
+        const created = await saveDraft({
+          description: pmo.trim(),
+          category,
+          platforms: platforms.length ? platforms : null,
+          platforms_other: platformsOther.trim() || null,
+          frequency,
+          cost_impact: cost,
+          dream_fix: dreamFix.trim() || null,
+          user_id: user?.id ?? null,
+        });
+        id = created.id;
+        setSubmissionId(id);
+      } catch (err) {
+        console.warn("Recovery draft insert failed:", err);
+        id = crypto.randomUUID();
+      }
+    }
+
+    const finalizePayload = {
+      id,
       description: pmo.trim(),
       email: email.trim(),
-      category,
-      platforms: platforms.length ? platforms : null,
-      platforms_other: platformsOther.trim() || null,
-      frequency,
-      cost_impact: cost,
-      dream_fix: dreamFix.trim() || null,
       first_name: firstName.trim() || null,
       work_type: workType,
       user_id: user?.id ?? null,
@@ -214,7 +306,7 @@ function Index() {
 
     try {
       const result = await Promise.race([
-        submitMatchViaApi(submissionPayload),
+        finalizeMatch(finalizePayload),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("match-timeout")), 25000),
         ),
@@ -222,7 +314,7 @@ function Index() {
       setMatch(result as MatchResult);
     } catch (err) {
       console.warn("Match failed; showing fallback view:", err);
-      setMatch(clientFallbackMatch(submissionId, [pmo, category, platforms.join(" "), platformsOther, dreamFix]));
+      setMatch(clientFallbackMatch(id, [pmo, category, platforms.join(" "), platformsOther, dreamFix]));
       toast.error("Matcher hiccuped — showing the honest result now.");
     } finally {
       setSaving(false);
@@ -233,6 +325,7 @@ function Index() {
   const canQ1 = pmo.trim().length >= 5;
   const canQ3 = !!frequency && !!cost;
   const canSubmit = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+
 
   return (
     <main className="min-h-screen">
@@ -277,7 +370,7 @@ function Index() {
         <div className="rounded-2xl border border-border bg-card p-8 shadow-crest md:p-12">
           {submitted ? (
             <PostSubmit firstName={firstName} match={match} onReset={() => {
-              setSubmitted(false); setStep(1); setMatch(null);
+              setSubmitted(false); setStep(1); setMatch(null); setSubmissionId(null);
               setPmo(""); setCategory(null); setPlatforms([]); setPlatformsOther("");
               setFrequency(null); setCost(null); setDreamFix(""); setFirstName(""); setWorkType(null);
             }} />
@@ -324,8 +417,9 @@ function Index() {
                   </div>
 
                   <Nav
-                    onNext={() => setStep(2)}
-                    nextDisabled={!canQ1}
+                    onNext={goToStep2}
+                    nextDisabled={!canQ1 || savingStep}
+                    
                     transition="Got it. Now tell us where this is happening..."
                   />
                 </div>
@@ -363,7 +457,7 @@ function Index() {
 
                   <Nav
                     onBack={() => setStep(1)}
-                    onNext={() => setStep(3)}
+                    onNext={goToStep3}
                     transition="Noted. How bad is it actually?"
                   />
                 </div>
@@ -402,7 +496,7 @@ function Index() {
 
                   <Nav
                     onBack={() => setStep(2)}
-                    onNext={() => setStep(4)}
+                    onNext={goToStep4}
                     nextDisabled={!canQ3}
                     transition="OK we feel that. Now — what would the perfect fix actually look like?"
                   />
@@ -434,7 +528,7 @@ function Index() {
 
                   <Nav
                     onBack={() => setStep(3)}
-                    onNext={() => setStep(5)}
+                    onNext={goToStep5}
                     transition="Almost done. Just need to know where to send your fix."
                   />
                 </div>
