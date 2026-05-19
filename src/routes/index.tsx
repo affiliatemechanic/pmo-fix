@@ -419,7 +419,7 @@ function Index() {
                   <Nav
                     onNext={goToStep2}
                     nextDisabled={!canQ1 || savingStep}
-                    nextDisabled={!canQ1}
+                    
                     transition="Got it. Now tell us where this is happening..."
                   />
                 </div>
@@ -457,7 +457,7 @@ function Index() {
 
                   <Nav
                     onBack={() => setStep(1)}
-                    onNext={() => setStep(3)}
+                    onNext={goToStep3}
                     transition="Noted. How bad is it actually?"
                   />
                 </div>
@@ -496,7 +496,7 @@ function Index() {
 
                   <Nav
                     onBack={() => setStep(2)}
-                    onNext={() => setStep(4)}
+                    onNext={goToStep4}
                     nextDisabled={!canQ3}
                     transition="OK we feel that. Now — what would the perfect fix actually look like?"
                   />
@@ -528,7 +528,7 @@ function Index() {
 
                   <Nav
                     onBack={() => setStep(3)}
-                    onNext={() => setStep(5)}
+                    onNext={goToStep5}
                     transition="Almost done. Just need to know where to send your fix."
                   />
                 </div>
