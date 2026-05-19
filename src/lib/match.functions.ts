@@ -126,7 +126,25 @@ export type MatchResult = Omit<RawMatchOutput, "verdict" | "confidence" | "headl
     image_url?: string;
   } | null;
   submission_id: string;
+  /** "prematch" = background pass run before user finished funnel; "final" = post-submit. */
+  stage?: "prematch" | "final";
 };
+
+/** Partial schema used by draft endpoint — every field optional except validation rules. */
+export const DraftInputSchema = z.object({
+  id: z.string().uuid().optional(),
+  description: z.string().min(5).max(5000).optional(),
+  email: z.string().email().max(255).optional(),
+  category: z.string().max(100).nullable().optional(),
+  platforms: z.array(z.string().max(200)).max(30).nullable().optional(),
+  platforms_other: z.string().max(500).nullable().optional(),
+  frequency: z.string().max(50).nullable().optional(),
+  cost_impact: z.string().max(50).nullable().optional(),
+  dream_fix: z.string().max(5000).nullable().optional(),
+  first_name: z.string().max(100).nullable().optional(),
+  work_type: z.string().max(100).nullable().optional(),
+  user_id: z.string().uuid().nullable().optional(),
+});
 
 function withTimeout<T>(promise: PromiseLike<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
