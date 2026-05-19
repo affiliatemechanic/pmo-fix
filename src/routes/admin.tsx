@@ -773,6 +773,19 @@ function SubmissionRow({
     onUpdated(data as Submission);
   };
 
+  const handleDelete = async () => {
+    if (!confirm(`Delete this submission from ${s.email ?? "anonymous"}? This cannot be undone.`)) return;
+    setDeleting(true);
+    const { error } = await supabase.from("pmo_submissions").delete().eq("id", s.id);
+    setDeleting(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Submission deleted.");
+    onDeleted(s.id);
+  };
+
   const match = s.match_result as
     | { headline?: string; verdict?: string; reasoning?: string; matched_fix?: { name?: string; url?: string }; external_recommendation?: { name?: string; url?: string }; next_steps?: string[] }
     | null;
