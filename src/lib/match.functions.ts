@@ -459,25 +459,300 @@ export const submitAndMatch = createServerFn({ method: "POST" })
     }
   });
 
+type SubmissionRow = {
+  id: string;
+  description: string;
+  email: string | null;
+  first_name: string | null;
+  category: string | null;
+  platforms: string[] | null;
+  platforms_other: string | null;
+  frequency: string | null;
+  cost_impact: string | null;
+  dream_fix: string | null;
+  work_type: string | null;
+  user_id: string | null;
+  match_result: unknown;
+  matched_at: string | null;
+};
+
+/**
+ * Upsert a partial draft of a submission. Used by the staged-funnel flow
+ * (steps 1-4) so each step can persist what the user has answered so far
+ * without requiring all fields up front.
+ */
+export async function upsertDraft(
+  input: z.infer<typeof DraftInputSchema>,
+): Promise<{ id: string }> {
+  const id = input.id ?? crypto.randomUUID();
+  const payload: Record<string, unknown> = { id };
+
+  if (input.description !== undefined) payload.description = input.description.trim();
+  if (input.email !== undefined) payload.email = input.email.trim();
+  if (input.category !== undefined) payload.category = input.category;
+  if (input.platforms !== undefined) payload.platforms = input.platforms?.length ? input.platforms : null;
+  if (input.platforms_other !== undefined) payload.platforms_other = input.platforms_other?.trim() || null;
+  if (input.frequency !== undefined) payload.frequency = input.frequency;
+  if (input.cost_impact !== undefined) payload.cost_impact = input.cost_impact;
+  if (input.dream_fix !== undefined) payload.dream_fix = input.dream_fix?.trim() || null;
+  if (input.first_name !== undefined) payload.first_name = input.first_name?.trim() || null;
+  if (input.work_type !== undefined) payload.work_type = input.work_type;
+  if (input.user_id !== undefined) payload.user_id = input.user_id;
+
+  // First insert of a brand-new row needs description (NOT NULL).
+  if (!input.id && !input.description) {
+    throw new Error("Description is required for the initial draft");
+  }
+
+  const { error } = await withTimeout(
+    supabaseAdmin.from("pmo_submissions").upsert(payload, { onConflict: "id" }),
+    10_000,
+    "Saving draft",
+  );
+  if (error) {
+    console.error("upsertDraft failed:", error);
+    throw new Error(error.message);
+  }
+  return { id };
+}
+
+async function loadSubmission(id: string): Promise<SubmissionRow> {
+  const { data, error } = await withTimeout(
+    supabaseAdmin.from("pmo_submissions").select("*").eq("id", id).single(),
+    10_000,
+    "Loading submission",
+  );
+  if (error || !data) {
+    throw new Error(error?.message ?? "Submission not found");
+  }
+  return data as SubmissionRow;
+}
+
+/**
+ * Core matcher. Takes an already-persisted submission row, runs the AI match,
+ * writes the result back to `match_result` with the given stage, and optionally
+ * queues the result email.
+ */
+async function runMatchInner(
+  submission: SubmissionRow,
+  opts: { stage: "prematch" | "final"; sendEmail: boolean },
+): Promise<MatchResult> {
+  const apiKey = process.env.LOVABLE_API_KEY;
+  if (!apiKey) {
+    console.error("Missing LOVABLE_API_KEY — returning manual-match fallback");
+    const fallback: MatchResult = { ...fallbackMatch(submission.id), stage: opts.stage };
+    await supabaseAdmin
+      .from("pmo_submissions")
+      .update({ match_result: fallback, matched_at: new Date().toISOString() })
+      .eq("id", submission.id);
+    if (opts.sendEmail) await queueMatchResultEmail(submission, fallback);
+    return fallback;
+  }
+
+  const { data: fixes, error: fixErr } = await withTimeout(
+    supabaseAdmin
+      .from("fixes")
+      .select("id, name, type, summary, description, url, categories, platforms, tags, price_note, image_url")
+      .eq("active", true),
+    10_000,
+    "Loading fixes",
+  );
+  if (fixErr) throw new Error(fixErr.message);
+
+  const catalog: CatalogFix[] = (fixes ?? []).map((f) => ({
+    id: f.id,
+    name: f.name,
+    type: f.type,
+    summary: f.summary,
+    description: f.description ?? "",
+    categories: f.categories ?? [],
+    platforms: f.platforms ?? [],
+    tags: f.tags ?? [],
+    url: f.url ?? "",
+    price_note: f.price_note ?? "",
+    image_url: f.image_url ?? "",
+  }));
+
+  const gateway = createLovableAiGatewayProvider(apiKey);
+  const model = gateway("google/gemini-2.5-flash");
+
+  const system = `You are the PMOfix matching engine. PMO = "Pisses Me Off" — a user-reported workflow problem.
+Your job: get the user a real solution as fast as possible. In priority order:
+
+1. INTERNAL CATALOG MATCH — if our catalog has a fix that directly solves this, verdict = "match" and set matched_fix_id.
+2. INTERNAL CATALOG ADJACENT — if our catalog has something that partially helps, verdict = "recommended" and set matched_fix_id.
+3. EXTERNAL TOOL — if nothing in our catalog fits but a well-known third-party product/service/tool DOES solve this (e.g. Zapier, Make, Descript, Notion, Calendly, Loom, Fathom, Castmagic, etc.), verdict = "recommended", matched_fix_id = null, and fill external_recommendation with { name, url (best guess to the product homepage, or null), why }. Only recommend tools you're confident actually exist and actually do this.
+4. GAP — if nothing internal AND no good external tool genuinely solves this, verdict = "gap", matched_fix_id = null, external_recommendation = null. This is a great outcome — it's a build candidate for us. Be honest; don't force a recommendation.
+
+Other rules:
+- headline: punchy 1-line verdict in PMOfix voice (direct, slightly irreverent, no fluff, no emoji spam). Max 200 chars.
+- reasoning: 2-4 sentences explaining the match (or gap), referencing the user's actual problem.
+- next_steps: 2-4 short, concrete actions. For external recs, include trying the tool. For gaps, say something like "We're flagging this as a build candidate — we may build it."
+- Never invent internal fixes. Never use a matched_fix_id that isn't in the catalog.
+- Don't recommend an external tool you're not sure about. "Gap" beats a bad recommendation.
+
+Return ONLY a JSON object with this exact shape (no markdown, no commentary):
+{
+  "verdict": "match" | "recommended" | "gap",
+  "confidence": "low" | "medium" | "high",
+  "matched_fix_id": string | null,
+  "external_recommendation": { "name": string, "url": string | null, "why": string } | null,
+  "headline": string,
+  "reasoning": string,
+  "next_steps": [string, ...]
+}`;
+
+  const userPrompt = `USER SUBMISSION:
+Problem: ${submission.description}
+Category: ${submission.category ?? "(none)"}
+Platforms involved: ${(submission.platforms ?? []).join(", ") || "(none specified)"}
+Other platforms: ${submission.platforms_other ?? "(none)"}
+Frequency: ${submission.frequency ?? "(unspecified)"}
+Cost/impact: ${submission.cost_impact ?? "(unspecified)"}
+Dream fix: ${submission.dream_fix ?? "(none described)"}
+Work type: ${submission.work_type ?? "(unspecified)"}
+
+FIX CATALOG (${catalog.length} active):
+${catalog.length === 0 ? "(empty — no fixes in catalog yet, so verdict MUST be 'gap')" : JSON.stringify(catalog, null, 2)}
+
+Pick the best match or declare a gap.`;
+
+  const aiAbort = AbortSignal.timeout(45_000);
+  let output: z.infer<typeof MatchSchema>;
+  try {
+    const res = await generateObject({
+      model,
+      schema: MatchSchema,
+      system,
+      prompt: userPrompt,
+      abortSignal: aiAbort,
+    });
+    output = res.object;
+  } catch (structErr) {
+    console.error("generateObject failed, falling back to generateText:", errorMessage(structErr));
+    try {
+      const textRes = await generateText({
+        model,
+        system,
+        prompt: userPrompt,
+        abortSignal: aiAbort,
+      });
+      const parsed = extractJsonObject(textRes.text.trim());
+      output = MatchSchema.parse(parsed);
+    } catch (textErr) {
+      const msg = errorMessage(textErr);
+      console.error("AI match failed (text fallback also failed), using deterministic backup:", msg, textErr);
+      const fallback: MatchResult = {
+        ...deterministicBackupMatch(submission, catalog),
+        stage: opts.stage,
+      };
+      await supabaseAdmin
+        .from("pmo_submissions")
+        .update({ match_result: fallback, matched_at: new Date().toISOString() })
+        .eq("id", submission.id);
+      if (opts.sendEmail) await queueMatchResultEmail(submission, fallback);
+      return fallback;
+    }
+  }
+
+  if (output.verdict === "gap") {
+    const backup = deterministicBackupMatch(submission, catalog);
+    if (backup.verdict !== "gap") {
+      output = {
+        verdict: backup.verdict,
+        confidence: backup.confidence,
+        matched_fix_id: backup.matched_fix_id,
+        external_recommendation: backup.external_recommendation,
+        headline: backup.headline,
+        reasoning: backup.reasoning,
+        next_steps: backup.next_steps,
+      };
+    }
+  }
+
+  let matchedFixId = output.matched_fix_id;
+  if (matchedFixId && !catalog.find((c) => c.id === matchedFixId)) {
+    matchedFixId = null;
+  }
+  const matchedFix = matchedFixId
+    ? catalog.find((c) => c.id === matchedFixId) ?? null
+    : null;
+  const hasExternal = !!output.external_recommendation?.name;
+  const verdict =
+    !matchedFix && !hasExternal
+      ? "gap"
+      : output.verdict ?? (hasExternal ? "recommended" : "match");
+
+  const result: MatchResult = {
+    ...output,
+    verdict,
+    confidence: output.confidence ?? "medium",
+    matched_fix_id: matchedFixId,
+    matched_fix: matchedFix,
+    headline: output.headline || (matchedFix ? `${matchedFix.name} looks like your best fix.` : "We found a fix worth trying."),
+    reasoning: output.reasoning || (matchedFix ? `${matchedFix.name} maps to the pain you described and is the closest fit in the PMOfix vault.` : "We found a practical recommendation for this PMO."),
+    next_steps: normalizeSteps(output.next_steps).length
+      ? normalizeSteps(output.next_steps)
+      : matchedFix
+        ? [`Open ${matchedFix.name} and compare it against the workflow that keeps breaking.`, "If it solves the pain, grab the fix and move on."]
+        : ["Try the recommended fix and see if it removes the recurring pain.", "If it misses, reply to the email and we'll review it manually."],
+    submission_id: submission.id,
+    stage: opts.stage,
+  };
+
+  await supabaseAdmin
+    .from("pmo_submissions")
+    .update({ match_result: result, matched_at: new Date().toISOString() })
+    .eq("id", submission.id);
+
+  if (opts.sendEmail) await queueMatchResultEmail(submission, result);
+
+  return result;
+}
+
+/** Run a background "prematch" pass on the current state of a submission. */
+export async function runPrematch(id: string): Promise<MatchResult> {
+  const submission = await loadSubmission(id);
+  return runMatchInner(submission, { stage: "prematch", sendEmail: false });
+}
+
+/**
+ * Finalize a submission: if a fresh prematch result is already cached and the
+ * user didn't add a dream_fix afterward, reuse it (just stamp + email).
+ * Otherwise re-run the AI with the full context.
+ */
+export async function runFinalize(id: string): Promise<MatchResult> {
+  const submission = await loadSubmission(id);
+  const cached = submission.match_result as MatchResult | null;
+
+  const canReuse =
+    cached &&
+    cached.stage === "prematch" &&
+    cached.submission_id === submission.id &&
+    !submission.dream_fix; // dream_fix wasn't in prematch input — re-run if present
+
+  if (canReuse) {
+    const finalResult: MatchResult = { ...cached, stage: "final" };
+    await supabaseAdmin
+      .from("pmo_submissions")
+      .update({ match_result: finalResult, matched_at: new Date().toISOString() })
+      .eq("id", submission.id);
+    await queueMatchResultEmail(submission, finalResult);
+    return finalResult;
+  }
+
+  return runMatchInner(submission, { stage: "final", sendEmail: true });
+}
+
+/** Legacy one-shot path: insert all fields + match + email in a single call. */
 export async function runSubmitAndMatch(
   data: z.infer<typeof SubmissionInputSchema>,
 ): Promise<MatchResult> {
-  // 1. Insert submission FIRST so the row is always saved, even if matching
-  //    fails downstream. The catalog load + AI call run after.
-  const submissionPayload = {
-    ...(data.id ? { id: data.id } : {}),
-    description: data.description.trim(),
-    email: data.email.trim(),
-    category: data.category ?? null,
-    platforms: data.platforms?.length ? data.platforms : null,
-    platforms_other: data.platforms_other?.trim() || null,
-    frequency: data.frequency ?? null,
-    cost_impact: data.cost_impact ?? null,
-    dream_fix: data.dream_fix?.trim() || null,
-    first_name: data.first_name?.trim() || null,
-    work_type: data.work_type ?? null,
-    user_id: data.user_id ?? null,
-  };
+  const { id } = await upsertDraft(data);
+  const submission = await loadSubmission(id);
+  return runMatchInner(submission, { stage: "final", sendEmail: true });
+}
+
 
   const { data: submission, error: insErr } = await withTimeout(
     supabaseAdmin
