@@ -715,16 +715,19 @@ function SubmissionRow({
   open,
   onToggle,
   onUpdated,
+  onDeleted,
 }: {
   submission: Submission;
   emailStatus: EmailLogRow | undefined;
   open: boolean;
   onToggle: () => void;
   onUpdated: (s: Submission) => void;
+  onDeleted: (id: string) => void;
 }) {
   const s = submission;
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [draft, setDraft] = useState({
     description: s.description ?? "",
     category: s.category ?? "",
