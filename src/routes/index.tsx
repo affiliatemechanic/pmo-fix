@@ -370,7 +370,7 @@ function Index() {
         <div className="rounded-2xl border border-border bg-card p-8 shadow-crest md:p-12">
           {submitted ? (
             <PostSubmit firstName={firstName} match={match} onReset={() => {
-              setSubmitted(false); setStep(1); setMatch(null);
+              setSubmitted(false); setStep(1); setMatch(null); setSubmissionId(null);
               setPmo(""); setCategory(null); setPlatforms([]); setPlatformsOther("");
               setFrequency(null); setCost(null); setDreamFix(""); setFirstName(""); setWorkType(null);
             }} />
