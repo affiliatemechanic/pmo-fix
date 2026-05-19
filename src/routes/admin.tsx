@@ -614,10 +614,12 @@ function SubmissionsPanel({
   submissions,
   emailLogs,
   onUpdated,
+  onDeleted,
 }: {
   submissions: Submission[];
   emailLogs: EmailLogRow[];
   onUpdated: (s: Submission) => void;
+  onDeleted: (id: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
