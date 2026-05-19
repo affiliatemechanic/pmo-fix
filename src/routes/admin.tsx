@@ -841,12 +841,21 @@ function SubmissionRow({
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={() => setEditing(true)}
-                  className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:text-cream"
-                >
-                  Edit
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:text-cream"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    disabled={deleting}
+                    onClick={handleDelete}
+                    className="rounded-md border border-destructive/40 px-3 py-1 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                  >
+                    {deleting ? "Deleting…" : "Delete"}
+                  </button>
+                </div>
               )}
             </div>
 
