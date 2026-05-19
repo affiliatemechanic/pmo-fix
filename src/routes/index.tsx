@@ -176,8 +176,10 @@ function Index() {
 
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingStep, setSavingStep] = useState(false);
   const [loadingLine, setLoadingLine] = useState(0);
   const [match, setMatch] = useState<MatchResult | null>(null);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
 
   const [user, setUser] = useState<User | null>(null);
 
@@ -201,10 +203,65 @@ function Index() {
     return () => clearInterval(id);
   }, [saving]);
 
-
-
   const togglePlatform = (p: string) =>
     setPlatforms((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
+
+  // Step 1 → save description + category, get back an id we'll reuse for the rest.
+  const goToStep2 = async () => {
+    setSavingStep(true);
+    try {
+      const { id } = await saveDraft({
+        id: submissionId ?? undefined,
+        description: pmo.trim(),
+        category,
+        user_id: user?.id ?? null,
+      });
+      setSubmissionId(id);
+      setStep(2);
+    } catch (err) {
+      console.warn("Draft save failed (continuing):", err);
+      setStep(2); // non-fatal — finalize will upsert everything anyway
+    } finally {
+      setSavingStep(false);
+    }
+  };
+
+  // Step 2 → save platforms + kick off background AI match.
+  const goToStep3 = async () => {
+    if (submissionId) {
+      saveDraft({
+        id: submissionId,
+        platforms: platforms.length ? platforms : null,
+        platforms_other: platformsOther.trim() || null,
+      })
+        .then(() => triggerPrematch(submissionId))
+        .catch((err) => console.warn("Step 2 save failed:", err));
+    }
+    setStep(3);
+  };
+
+  // Step 3 → save frequency + cost.
+  const goToStep4 = () => {
+    if (submissionId) {
+      saveDraft({
+        id: submissionId,
+        frequency,
+        cost_impact: cost,
+      }).catch((err) => console.warn("Step 3 save failed:", err));
+    }
+    setStep(4);
+  };
+
+  // Step 4 → save dream_fix (this invalidates the prematch cache server-side).
+  const goToStep5 = () => {
+    if (submissionId) {
+      saveDraft({
+        id: submissionId,
+        dream_fix: dreamFix.trim() || null,
+      }).catch((err) => console.warn("Step 4 save failed:", err));
+    }
+    setStep(5);
+  };
 
   const submit = async () => {
     const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
@@ -212,17 +269,33 @@ function Index() {
       toast.error("Please enter a valid email so we can send your fix.");
       return;
     }
-    const submissionId = crypto.randomUUID();
-    const submissionPayload = {
-      id: submissionId,
+
+    // If something went wrong with Step 1's draft save, recover by inserting now.
+    let id = submissionId;
+    if (!id) {
+      try {
+        const created = await saveDraft({
+          description: pmo.trim(),
+          category,
+          platforms: platforms.length ? platforms : null,
+          platforms_other: platformsOther.trim() || null,
+          frequency,
+          cost_impact: cost,
+          dream_fix: dreamFix.trim() || null,
+          user_id: user?.id ?? null,
+        });
+        id = created.id;
+        setSubmissionId(id);
+      } catch (err) {
+        console.warn("Recovery draft insert failed:", err);
+        id = crypto.randomUUID();
+      }
+    }
+
+    const finalizePayload = {
+      id,
       description: pmo.trim(),
       email: email.trim(),
-      category,
-      platforms: platforms.length ? platforms : null,
-      platforms_other: platformsOther.trim() || null,
-      frequency,
-      cost_impact: cost,
-      dream_fix: dreamFix.trim() || null,
       first_name: firstName.trim() || null,
       work_type: workType,
       user_id: user?.id ?? null,
@@ -233,7 +306,7 @@ function Index() {
 
     try {
       const result = await Promise.race([
-        submitMatchViaApi(submissionPayload),
+        finalizeMatch(finalizePayload),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("match-timeout")), 25000),
         ),
@@ -241,7 +314,7 @@ function Index() {
       setMatch(result as MatchResult);
     } catch (err) {
       console.warn("Match failed; showing fallback view:", err);
-      setMatch(clientFallbackMatch(submissionId, [pmo, category, platforms.join(" "), platformsOther, dreamFix]));
+      setMatch(clientFallbackMatch(id, [pmo, category, platforms.join(" "), platformsOther, dreamFix]));
       toast.error("Matcher hiccuped — showing the honest result now.");
     } finally {
       setSaving(false);
@@ -252,6 +325,7 @@ function Index() {
   const canQ1 = pmo.trim().length >= 5;
   const canQ3 = !!frequency && !!cost;
   const canSubmit = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+
 
   return (
     <main className="min-h-screen">
