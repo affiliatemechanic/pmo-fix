@@ -18,7 +18,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "pmo-fix"
+const SITE_NAME = "Jeffrey Levesque"
 const ROOT_DOMAIN = "pmofix.com"
 
 // Sample data for preview mode ONLY (not used in actual email sending).

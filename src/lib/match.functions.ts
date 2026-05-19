@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { createLovableAiGatewayProvider } from "./ai-gateway";
 import { getKnownExternalRecommendation } from "./match-rules";
 
-const SITE_NAME = "pmo-fix";
+const SITE_NAME = "Jeffrey Levesque";
 const SENDER_DOMAIN = "notify.pmofix.com";
 const FROM_DOMAIN = "notify.pmofix.com";
 

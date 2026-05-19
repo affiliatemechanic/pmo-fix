@@ -31,7 +31,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "pmo-fix"
+const SITE_NAME = "Jeffrey Levesque"
 const SENDER_DOMAIN = "notify.pmofix.com"
 const ROOT_DOMAIN = "pmofix.com"
 const FROM_DOMAIN = "notify.pmofix.com"
