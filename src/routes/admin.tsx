@@ -217,6 +217,9 @@ function AdminPage() {
             onUpdated={(updated) =>
               setSubmissions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
             }
+            onDeleted={(id) =>
+              setSubmissions((prev) => prev.filter((s) => s.id !== id))
+            }
           />
         )}
 
