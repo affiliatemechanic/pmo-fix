@@ -505,7 +505,7 @@ export async function upsertDraft(
   }
 
   const { error } = await withTimeout(
-    supabaseAdmin.from("pmo_submissions").upsert(payload, { onConflict: "id" }),
+    supabaseAdmin.from("pmo_submissions").upsert(payload as never, { onConflict: "id" }),
     10_000,
     "Saving draft",
   );
