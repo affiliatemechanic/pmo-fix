@@ -217,6 +217,9 @@ function AdminPage() {
             onUpdated={(updated) =>
               setSubmissions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
             }
+            onDeleted={(id) =>
+              setSubmissions((prev) => prev.filter((s) => s.id !== id))
+            }
           />
         )}
 
@@ -611,10 +614,12 @@ function SubmissionsPanel({
   submissions,
   emailLogs,
   onUpdated,
+  onDeleted,
 }: {
   submissions: Submission[];
   emailLogs: EmailLogRow[];
   onUpdated: (s: Submission) => void;
+  onDeleted: (id: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -672,6 +677,7 @@ function SubmissionsPanel({
             open={isOpen}
             onToggle={() => setOpenId(isOpen ? null : s.id)}
             onUpdated={onUpdated}
+            onDeleted={onDeleted}
           />
         );
       })}
@@ -709,16 +715,19 @@ function SubmissionRow({
   open,
   onToggle,
   onUpdated,
+  onDeleted,
 }: {
   submission: Submission;
   emailStatus: EmailLogRow | undefined;
   open: boolean;
   onToggle: () => void;
   onUpdated: (s: Submission) => void;
+  onDeleted: (id: string) => void;
 }) {
   const s = submission;
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [draft, setDraft] = useState({
     description: s.description ?? "",
     category: s.category ?? "",
@@ -762,6 +771,19 @@ function SubmissionRow({
     toast.success("Saved.");
     setEditing(false);
     onUpdated(data as Submission);
+  };
+
+  const handleDelete = async () => {
+    if (!confirm(`Delete this submission from ${s.email ?? "anonymous"}? This cannot be undone.`)) return;
+    setDeleting(true);
+    const { error } = await supabase.from("pmo_submissions").delete().eq("id", s.id);
+    setDeleting(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Submission deleted.");
+    onDeleted(s.id);
   };
 
   const match = s.match_result as
@@ -819,12 +841,21 @@ function SubmissionRow({
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={() => setEditing(true)}
-                  className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:text-cream"
-                >
-                  Edit
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:text-cream"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    disabled={deleting}
+                    onClick={handleDelete}
+                    className="rounded-md border border-destructive/40 px-3 py-1 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                  >
+                    {deleting ? "Deleting…" : "Delete"}
+                  </button>
+                </div>
               )}
             </div>
 
