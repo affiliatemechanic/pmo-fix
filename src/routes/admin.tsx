@@ -677,6 +677,7 @@ function SubmissionsPanel({
             open={isOpen}
             onToggle={() => setOpenId(isOpen ? null : s.id)}
             onUpdated={onUpdated}
+            onDeleted={onDeleted}
           />
         );
       })}
