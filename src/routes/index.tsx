@@ -417,7 +417,8 @@ function Index() {
                   </div>
 
                   <Nav
-                    onNext={() => setStep(2)}
+                    onNext={goToStep2}
+                    nextDisabled={!canQ1 || savingStep}
                     nextDisabled={!canQ1}
                     transition="Got it. Now tell us where this is happening..."
                   />
