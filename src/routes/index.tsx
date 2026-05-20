@@ -681,7 +681,13 @@ function Index() {
           <Option
             tag="$5K – $100K+"
             title="Yours. Exclusively. Forever."
-            body="Full custom build. You own the IP. One-time fee. Nobody else gets it."
+            body={
+              <>
+                Full custom build, including a full service web site. You own it. One-time fee.
+                <br /><br />
+                Sell it, give it away or hoard it for yourself! It's up to you!
+              </>
+            }
             featured
           />
           <Option
