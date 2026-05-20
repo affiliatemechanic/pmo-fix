@@ -92,6 +92,15 @@ export const SubmissionInputSchema = z.object({
 
 // NOTE: keep schema very permissive — model JSON can omit optional fields,
 // return nulls, or vary scalar/array shapes. We normalize after parsing.
+const RunnerUpSchema = z
+  .object({
+    matched_fix_id: z.string().nullish(),
+    external_name: z.string().nullish(),
+    external_url: z.string().nullish(),
+    why_winner_edged_it: z.string().nullish(),
+  })
+  .nullish();
+
 const MatchSchema = z.object({
   verdict: z.enum(["match", "recommended", "gap"]).optional(),
   confidence: z.enum(["low", "medium", "high"]).optional(),
@@ -106,11 +115,27 @@ const MatchSchema = z.object({
   headline: z.string().nullish(),
   reasoning: z.string().nullish(),
   next_steps: z.union([z.array(z.string()), z.string()]).nullish(),
+  runner_up: RunnerUpSchema,
 });
 
 type RawMatchOutput = z.infer<typeof MatchSchema>;
 
-export type MatchResult = Omit<RawMatchOutput, "verdict" | "confidence" | "headline" | "reasoning" | "next_steps"> & {
+export type RunnerUp = {
+  why_winner_edged_it: string;
+  matched_fix?: {
+    id: string;
+    name: string;
+    type: string;
+    summary: string;
+    url?: string;
+    price_note?: string;
+    image_url?: string;
+  } | null;
+  external_name?: string | null;
+  external_url?: string | null;
+};
+
+export type MatchResult = Omit<RawMatchOutput, "verdict" | "confidence" | "headline" | "reasoning" | "next_steps" | "runner_up"> & {
   verdict: "match" | "recommended" | "gap";
   confidence: "low" | "medium" | "high";
   headline: string;
@@ -125,6 +150,7 @@ export type MatchResult = Omit<RawMatchOutput, "verdict" | "confidence" | "headl
     price_note?: string;
     image_url?: string;
   } | null;
+  runner_up?: RunnerUp | null;
   submission_id: string;
   /** "prematch" = background pass run before user finished funnel; "final" = post-submit. */
   stage?: "prematch" | "final";
