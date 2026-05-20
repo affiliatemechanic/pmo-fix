@@ -473,13 +473,47 @@ function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<voi
                   onChange={(e) => setEditing({ ...editing, url: e.target.value })}
                 />
               </SubField>
-              <SubField label="Image URL (logo or product image)">
+              <SubField label="Image (logo or product image)">
                 <input
                   className="input"
                   value={editing.image_url}
                   onChange={(e) => setEditing({ ...editing, image_url: e.target.value })}
-                  placeholder="https://…/logo.png"
+                  placeholder="https://…/logo.png or upload below"
                 />
+                <div className="mt-2 flex items-center gap-3">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                    disabled={uploadingImage}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) {
+                        toast.error("Image must be 5 MB or smaller");
+                        return;
+                      }
+                      setUploadingImage(true);
+                      try {
+                        const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+                        const path = `${crypto.randomUUID()}.${ext}`;
+                        const { error: upErr } = await supabase.storage
+                          .from("fix-images")
+                          .upload(path, file, { contentType: file.type, upsert: false });
+                        if (upErr) throw upErr;
+                        const { data } = supabase.storage.from("fix-images").getPublicUrl(path);
+                        setEditing((prev) => prev && { ...prev, image_url: data.publicUrl });
+                        toast.success("Image uploaded");
+                      } catch (err: any) {
+                        toast.error(err?.message ?? "Upload failed");
+                      } finally {
+                        setUploadingImage(false);
+                      }
+                    }}
+                    className="text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
+                  />
+                  {uploadingImage && <span className="text-xs text-muted-foreground">Uploading…</span>}
+                </div>
                 {editing.image_url && (
                   <img
                     src={editing.image_url}
