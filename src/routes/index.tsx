@@ -182,6 +182,7 @@ function Index() {
   const [match, setMatch] = useState<MatchResult | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState("");
 
   const [user, setUser] = useState<User | null>(null);
 
@@ -218,6 +219,7 @@ function Index() {
         category,
         user_id: user?.id ?? null,
         turnstile_token: submissionId ? undefined : turnstileToken,
+        company_website: honeypot,
       });
       setSubmissionId(id);
       setStep(2);
@@ -418,6 +420,20 @@ function Index() {
                         </Chip>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Honeypot — hidden from humans, irresistible to bots */}
+                  <div aria-hidden="true" style={{ position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" }}>
+                    <label htmlFor="company_website">Company website (leave blank)</label>
+                    <input
+                      id="company_website"
+                      name="company_website"
+                      type="text"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      value={honeypot}
+                      onChange={(e) => setHoneypot(e.target.value)}
+                    />
                   </div>
 
                   {!submissionId && (
