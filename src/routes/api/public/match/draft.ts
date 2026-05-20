@@ -1,6 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { DraftInputSchema, upsertDraft } from "@/lib/match.functions";
 
+async function verifyTurnstile(token: string, remoteip?: string | null): Promise<boolean> {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!secret) {
+    console.error("TURNSTILE_SECRET_KEY is not configured");
+    return false;
+  }
+  try {
+    const body = new URLSearchParams();
+    body.set("secret", secret);
+    body.set("response", token);
+    if (remoteip) body.set("remoteip", remoteip);
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body,
+    });
+    const data = (await res.json()) as { success?: boolean; "error-codes"?: string[] };
+    if (!data.success) {
+      console.warn("Turnstile verification failed:", data["error-codes"]);
+    }
+    return Boolean(data.success);
+  } catch (err) {
+    console.error("Turnstile verification request failed:", err);
+    return false;
+  }
+}
+
 export const Route = createFileRoute("/api/public/match/draft")({
   server: {
     handlers: {
@@ -10,7 +36,28 @@ export const Route = createFileRoute("/api/public/match/draft")({
           if (!contentType.includes("application/json")) {
             return Response.json({ error: "Expected JSON" }, { status: 415 });
           }
-          const payload = DraftInputSchema.parse(await request.json());
+          const raw = (await request.json()) as Record<string, unknown>;
+          const turnstileToken = typeof raw.turnstile_token === "string" ? raw.turnstile_token : null;
+          const hasExistingId = typeof raw.id === "string" && raw.id.length > 0;
+
+          // Only require Turnstile on the FIRST draft (no id yet). Subsequent
+          // saves reference an existing submission and are gated by that id.
+          if (!hasExistingId) {
+            if (!turnstileToken) {
+              return Response.json({ error: "Missing verification token" }, { status: 400 });
+            }
+            const remoteip =
+              request.headers.get("cf-connecting-ip") ||
+              request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+              null;
+            const ok = await verifyTurnstile(turnstileToken, remoteip);
+            if (!ok) {
+              return Response.json({ error: "Verification failed. Please try again." }, { status: 403 });
+            }
+          }
+
+          delete raw.turnstile_token;
+          const payload = DraftInputSchema.parse(raw);
           const result = await upsertDraft(payload);
           return Response.json(result);
         } catch (error) {
