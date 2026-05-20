@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import logo from "@/assets/pmofix-logo.png";
+import pmofixPromise from "@/assets/pmofix-promise.png";
 import { supabase } from "@/integrations/supabase/client";
 import type { MatchResult } from "@/lib/match.functions";
 import { getKnownExternalRecommendation } from "@/lib/match-rules";
@@ -700,6 +701,14 @@ function Index() {
                 Multiple profit-sharing options available
               </>
             }
+          />
+        </div>
+        <div className="mt-16">
+          <img
+            src={pmofixPromise}
+            alt="The PMOfix Promise — we always recommend your best fit. No bias, no agenda."
+            loading="lazy"
+            className="mx-auto w-full max-w-5xl rounded-2xl border border-gold/30 shadow-2xl"
           />
         </div>
       </section>
