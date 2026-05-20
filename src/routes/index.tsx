@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 import { FixCard } from "@/components/FixCard";
 import { UserMenu } from "@/components/UserMenu";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 async function postJson<T = unknown>(url: string, body: Record<string, unknown>): Promise<T> {
   const response = await fetch(url, {
@@ -180,6 +181,7 @@ function Index() {
   const [loadingLine, setLoadingLine] = useState(0);
   const [match, setMatch] = useState<MatchResult | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const [user, setUser] = useState<User | null>(null);
 
@@ -215,12 +217,14 @@ function Index() {
         description: pmo.trim(),
         category,
         user_id: user?.id ?? null,
+        turnstile_token: submissionId ? undefined : turnstileToken,
       });
       setSubmissionId(id);
       setStep(2);
     } catch (err) {
-      console.warn("Draft save failed (continuing):", err);
-      setStep(2); // non-fatal — finalize will upsert everything anyway
+      console.warn("Draft save failed:", err);
+      const msg = err instanceof Error ? err.message : "Could not save. Try again.";
+      toast.error(msg);
     } finally {
       setSavingStep(false);
     }
@@ -322,7 +326,7 @@ function Index() {
     }
   };
 
-  const canQ1 = pmo.trim().length >= 5;
+  const canQ1 = pmo.trim().length >= 5 && (!!submissionId || !!turnstileToken);
   const canQ3 = !!frequency && !!cost;
   const canSubmit = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
 
@@ -416,10 +420,15 @@ function Index() {
                     </div>
                   </div>
 
+                  {!submissionId && (
+                    <div className="mt-6">
+                      <TurnstileWidget onToken={setTurnstileToken} />
+                    </div>
+                  )}
+
                   <Nav
                     onNext={goToStep2}
                     nextDisabled={!canQ1 || savingStep}
-                    
                     transition="Got it. Now tell us where this is happening..."
                   />
                 </div>
