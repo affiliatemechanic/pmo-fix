@@ -948,6 +948,37 @@ function PostSubmit({
         </div>
       )}
 
+      {match?.runner_up && (match.runner_up.matched_fix || match.runner_up.external_name) && (
+        <div className="mt-8">
+          <div className="mb-4 h-px w-full bg-gradient-to-r from-transparent via-gold/20 to-transparent" />
+          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">We almost recommended…</div>
+          <div className="mt-3 rounded-xl border border-border bg-background/40 p-5">
+            <div className="flex items-baseline justify-between gap-3 flex-wrap">
+              <h4 className="text-lg font-bold text-cream">
+                {match.runner_up.matched_fix?.name ?? match.runner_up.external_name}
+              </h4>
+              {match.runner_up.external_name && !match.runner_up.matched_fix && (
+                <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">External tool</span>
+              )}
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+              <span className="font-semibold text-gold/90">Why the winner edged it out: </span>
+              {match.runner_up.why_winner_edged_it}
+            </p>
+            {(match.runner_up.matched_fix?.url || match.runner_up.external_url) && (
+              <a
+                href={match.runner_up.matched_fix?.url ?? match.runner_up.external_url ?? "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex items-center text-xs font-bold uppercase tracking-wide text-gold hover:underline"
+              >
+                Check it out →
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       {match?.next_steps && match.next_steps.length > 0 && (
         <div className="mt-10">
           <div className="mb-6 h-px w-full bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
