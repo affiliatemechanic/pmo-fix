@@ -9,27 +9,25 @@ export function UserMenu() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
+    const loadRole = async (uid: string) => {
+      const { data: roles, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", uid);
+      console.log("[UserMenu] roles query", { uid, roles, error });
+      setIsAdmin(!!roles?.some((r) => r.role === "admin"));
+    };
+
+    supabase.auth.getSession().then(({ data }) => {
+      console.log("[UserMenu] getSession", { userId: data.session?.user?.id ?? null });
       setUser(data.session?.user ?? null);
-      if (data.session) {
-        const { data: roles } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", data.session.user.id);
-        setIsAdmin(!!roles?.some((r) => r.role === "admin"));
-      }
+      if (data.session) loadRole(data.session.user.id);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      console.log("[UserMenu] authChange", { event: _e, userId: session?.user?.id ?? null });
       setUser(session?.user ?? null);
-      if (session) {
-        const { data: roles } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.user.id);
-        setIsAdmin(!!roles?.some((r) => r.role === "admin"));
-      } else {
-        setIsAdmin(false);
-      }
+      if (session) loadRole(session.user.id);
+      else setIsAdmin(false);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
