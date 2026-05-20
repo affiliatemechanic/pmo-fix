@@ -670,13 +670,7 @@ function Index() {
           <Option
             tag="Free forever"
             title="We Build It. You Get It Free."
-            body={
-              <>
-                Have a list? You bring the idea and audience. We bring the build and distribution.
-                <br /><br />
-                Multiple profit-sharing options available
-              </>
-            }
+            body="We own the product, sell it to the world. You get it free — forever. Optional royalty per deal."
           />
           <Option
             tag="$5K – $100K+"
@@ -687,7 +681,13 @@ function Index() {
           <Option
             tag="Rev share"
             title="Let's Split This."
-            body="You bring the idea and audience. We bring the build and distribution. Ongoing royalty."
+            body={
+              <>
+                Have a list? You bring the idea and audience. We bring the build and distribution.
+                <br /><br />
+                Multiple profit-sharing options available
+              </>
+            }
           />
         </div>
       </section>
