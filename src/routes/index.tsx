@@ -670,7 +670,13 @@ function Index() {
           <Option
             tag="Free forever"
             title="We Build It. You Get It Free."
-            body="We own the product, sell it to the world. You get it free — forever. Optional royalty per deal."
+            body={
+              <>
+                Have a list? You bring the idea and audience. We bring the build and distribution.
+                <br /><br />
+                Multiple profit-sharing options available
+              </>
+            }
           />
           <Option
             tag="$5K – $100K+"
@@ -734,7 +740,7 @@ function Step({ n, title, body }: { n: string; title: string; body: string }) {
 
 function Option({
   tag, title, body, featured,
-}: { tag: string; title: string; body: string; featured?: boolean }) {
+}: { tag: string; title: string; body: React.ReactNode; featured?: boolean }) {
   return (
     <div
       className={`rounded-xl border p-8 transition ${
