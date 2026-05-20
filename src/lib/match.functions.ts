@@ -714,8 +714,33 @@ Pick the best match or declare a gap.`;
       ? "gap"
       : output.verdict ?? (hasExternal ? "recommended" : "match");
 
+  // Normalize runner_up: must have a real "why" and at least one of internal
+  // fix or external name; exclude if it's the same as the winner.
+  let runnerUp: RunnerUp | null = null;
+  const ru = output.runner_up;
+  if (ru && ru.why_winner_edged_it && ru.why_winner_edged_it.trim()) {
+    const ruFixId =
+      ru.matched_fix_id && catalog.find((c) => c.id === ru.matched_fix_id) && ru.matched_fix_id !== matchedFixId
+        ? ru.matched_fix_id
+        : null;
+    const ruFix = ruFixId ? catalog.find((c) => c.id === ruFixId) ?? null : null;
+    const ruExternalName =
+      ru.external_name && ru.external_name.trim() && ru.external_name !== output.external_recommendation?.name
+        ? ru.external_name.trim()
+        : null;
+    if (ruFix || ruExternalName) {
+      runnerUp = {
+        why_winner_edged_it: ru.why_winner_edged_it.trim(),
+        matched_fix: ruFix,
+        external_name: ruExternalName,
+        external_url: ruExternalName ? ru.external_url ?? null : null,
+      };
+    }
+  }
+
+  const { runner_up: _ignored, ...outputRest } = output;
   const result: MatchResult = {
-    ...output,
+    ...outputRest,
     verdict,
     confidence: output.confidence ?? "medium",
     matched_fix_id: matchedFixId,
@@ -727,6 +752,7 @@ Pick the best match or declare a gap.`;
       : matchedFix
         ? [`Open ${matchedFix.name} and compare it against the workflow that keeps breaking.`, "If it solves the pain, grab the fix and move on."]
         : ["Try the recommended fix and see if it removes the recurring pain.", "If it misses, reply to the email and we'll review it manually."],
+    runner_up: runnerUp,
     submission_id: submission.id,
     stage: opts.stage,
   };
