@@ -53,13 +53,13 @@ export function UserMenu() {
   return (
     <div className="flex items-center gap-4">
       {isAdmin && (
-        <Link to="/admin" className="text-sm text-muted-foreground hover:text-gold transition">
+        <Link to="/admin" className="text-sm font-medium text-cream hover:text-gold transition">
           Admin
         </Link>
       )}
       <button
         onClick={handleSignOut}
-        className="text-sm text-muted-foreground hover:text-gold transition"
+        className="text-sm font-medium text-cream hover:text-gold transition cursor-pointer"
       >
         Sign out
       </button>
