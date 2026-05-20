@@ -670,7 +670,13 @@ function Index() {
           <Option
             tag="Free forever"
             title="We Build It. You Get It Free."
-            body="We own the product, sell it to the world. You get it free — forever. Optional royalty per deal."
+            body={
+              <>
+                We own the product and full rights to sell it to the world.
+                <br /><br />
+                <b>You get it free — forever.</b>
+              </>
+            }
           />
           <Option
             tag="$5K – $100K+"
