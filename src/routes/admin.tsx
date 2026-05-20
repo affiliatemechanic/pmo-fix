@@ -285,6 +285,7 @@ function splitList(v: string): string[] | null {
 
 function FixesPanel({ fixes, reload }: { fixes: Fix[]; reload: () => Promise<void> }) {
   const [editing, setEditing] = useState<FixDraft | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
