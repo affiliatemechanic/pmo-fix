@@ -647,7 +647,7 @@ function Index() {
           <div className="mb-12 text-center">
             <div className="text-xs uppercase tracking-[0.25em] text-gold">How it works</div>
             <h2 className="mt-3 text-4xl font-black text-cream md:text-5xl">
-              Three outcomes. <span className="text-gold italic">Always a win.</span>
+              Three outcomes. <span className="text-gold italic my-0 mt-0"><br /><br />Three wins!</span>
             </h2>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
