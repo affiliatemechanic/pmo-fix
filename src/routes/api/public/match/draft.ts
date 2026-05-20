@@ -40,6 +40,16 @@ export const Route = createFileRoute("/api/public/match/draft")({
           const turnstileToken = typeof raw.turnstile_token === "string" ? raw.turnstile_token : null;
           const hasExistingId = typeof raw.id === "string" && raw.id.length > 0;
 
+          // Honeypot: real users never fill the hidden `company_website` field.
+          // Bots that auto-fill every input get a fake-success response and are
+          // silently dropped (never written to the DB).
+          const honeypot = typeof raw.company_website === "string" ? raw.company_website.trim() : "";
+          if (honeypot.length > 0) {
+            console.warn("Honeypot tripped on draft endpoint");
+            return Response.json({ id: "00000000-0000-0000-0000-000000000000" });
+          }
+          delete raw.company_website;
+
           // Only require Turnstile on the FIRST draft (no id yet). Subsequent
           // saves reference an existing submission and are gated by that id.
           if (!hasExistingId) {
