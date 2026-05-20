@@ -711,6 +711,17 @@ function Index() {
             className="mx-auto w-full max-w-5xl rounded-2xl border border-gold/30 shadow-2xl"
           />
         </div>
+        <div className="mt-12 flex flex-col items-center gap-3 text-center">
+          <a
+            href="#start"
+            className="inline-flex items-center justify-center rounded-md bg-gold px-8 py-3 font-display text-base font-bold uppercase tracking-wider text-background shadow-lg transition-transform hover:scale-105 hover:bg-gold/90"
+          >
+            Get your fix
+          </a>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            Takes about a minute
+          </p>
+        </div>
       </section>
 
       <footer className="border-t border-border">
