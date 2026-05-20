@@ -880,9 +880,25 @@ function PostSubmit({
     verdict === "match" ? "text-gold" :
     verdict === "recommended" ? "text-cream" :
     "text-gold";
+  const scorePct =
+    verdict === "match" ? 92 :
+    verdict === "recommended" ? 78 :
+    null;
+  const reasoningBullets = match?.reasoning
+    ? match.reasoning
+        .split(/(?<=[.!?])\s+(?=[A-Z])/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+    : [];
 
   return (
     <div className="py-4">
+      {hasMatchResult && scorePct !== null && (
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold/50 bg-gold/10 px-4 py-1.5">
+          <span className="text-2xl font-black leading-none text-gold">{scorePct}%</span>
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Match</span>
+        </div>
+      )}
       <div className={`mb-3 text-xs uppercase tracking-[0.25em] ${tone}`}>{label}</div>
       <h2 className="font-display text-3xl font-black italic text-cream md:text-4xl">
         {match?.headline ?? (firstName ? `Thanks, ${firstName}. We're on it.` : "Thanks. We're on it.")}
@@ -894,10 +910,18 @@ function PostSubmit({
         </p>
       )}
 
-      {match?.reasoning && (
-        <p className="mt-5 text-muted-foreground leading-relaxed">
-          {match.reasoning}
-        </p>
+      {reasoningBullets.length > 0 && (
+        <div className="mt-6 rounded-xl border border-gold/20 bg-background/40 p-5">
+          <div className="text-xs uppercase tracking-[0.2em] text-gold">Why this was recommended</div>
+          <ul className="mt-3 space-y-2">
+            {reasoningBullets.map((b, i) => (
+              <li key={i} className="flex gap-3 text-muted-foreground leading-relaxed">
+                <span className="text-gold">✓</span>
+                <span>{b}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {match?.matched_fix && (
@@ -925,7 +949,8 @@ function PostSubmit({
       )}
 
       {match?.next_steps && match.next_steps.length > 0 && (
-        <div className="mt-6">
+        <div className="mt-10">
+          <div className="mb-6 h-px w-full bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
           <div className="text-xs uppercase tracking-[0.2em] text-gold">Next steps</div>
           <ul className="mt-3 space-y-2">
             {match.next_steps.map((step, i) => (
