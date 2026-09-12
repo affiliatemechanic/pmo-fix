@@ -135,7 +135,32 @@ competitor. Never weight results toward in-house products. Trust is the product.
 The runner-up block exists to show the honest close call, and must be `null` when
 there wasn't one.
 
-## 6. Result page presentation
+## 6. Design tokens / color scheme
+
+The brand is dark navy + gold. Tokens are defined in `assets/styles.css` (a copy of the live `src/styles.css`) and summarized here:
+
+| Token | Value | Usage |
+|---|---|---|
+| `--background` | `oklch(0.22 0.05 265)` | Page background |
+| `--foreground` | `oklch(0.96 0.02 90)` | Primary text |
+| `--primary` / `--gold` | `oklch(0.78 0.13 82)` | CTAs, accents, badges |
+| `--primary-foreground` / `--gold-foreground` | `oklch(0.2 0.05 265)` | Text on gold buttons |
+| `--cream` | `oklch(0.96 0.03 85)` | Headline emphasis |
+| `--card` | `oklch(0.27 0.06 265)` | Cards / panels |
+| `--muted-foreground` | `oklch(0.75 0.03 90)` | Body copy, summaries |
+| `--border` | `oklch(0.35 0.06 265)` | Dividers, card borders |
+
+Typography:
+- Display/headings: **Sora** (Google Fonts)
+- Body: **Inter** (Google Fonts)
+
+Key visual motifs:
+- Gold radial glows at top/bottom of the page.
+- Rounded-xl cards with `border-gold/40` and `bg-gold/5`.
+- Primary CTA: solid gold button, dark text, uppercase tracking.
+- Secondary CTA: gold outline button.
+
+## 7. Result page presentation
 
 - Match score badge above the headline: 92% for `match`, 78% for `recommended`, none for `gap`.
 - "Why this was recommended" bullets, derived by splitting the reasoning text.
