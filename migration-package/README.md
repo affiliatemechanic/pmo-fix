@@ -13,6 +13,7 @@ seed/fixes.mongo.json     Same catalog, ready for mongoimport
 seed/external-fallback-rules.ts  Regex rule table for known external tool recommendations
 assets/pmofix-logo.png    Logo
 assets/pmofix-promise.png "PMOfix Promise" trust graphic
+assets/styles.css         Full design tokens: navy/gold palette, Sora/Inter fonts, radii, shadows
 ```
 
 Not included: submission data (test rows only), email/auth tables' contents,
